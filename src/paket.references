@@ -7,3 +7,4 @@ Fable.Import.Browser
 
 File: Fable.Import.VSCode.fs
 File: Helpers.fs
+File: Fable.Import.Axios.fs
