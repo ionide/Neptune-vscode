@@ -1,15 +1,12 @@
+open System.IO
 // --------------------------------------------------------------------------------------
 // FAKE build script
 // --------------------------------------------------------------------------------------
 
 #I "packages/build/FAKE/tools"
 #r "FakeLib.dll"
-open System
-open System.Diagnostics
-open System.IO
 open Fake
 open Fake.YarnHelper
-open Fake.ZipHelper
 
 
 // --------------------------------------------------------------------------------------
@@ -18,7 +15,7 @@ open Fake.ZipHelper
 
 Target "Clean" (fun _ ->
     CleanDir "./temp"
-    CopyFiles "release" ["README.md"; "LICENSE.md"]
+    CopyFiles "release" ["README.md"]
     CopyFile "release/CHANGELOG.md" "RELEASE_NOTES.md"
 )
 
@@ -29,7 +26,8 @@ Target "DotNetRestore" <| fun () ->
     DotNetCli.Restore (fun p -> { p with WorkingDir = "src" } )
 
 let runFable additionalArgs =
-    let cmd = "fable webpack -- --config ../webpack.config.js " + additionalArgs
+    let path = Path.GetFullPath "./webpack.config.js"
+    let cmd = sprintf "fable webpack -- --config %s %s" path additionalArgs
     DotNetCli.RunCommand (fun p -> { p with WorkingDir = "src" } ) cmd
 
 Target "RunScript" (fun _ ->
