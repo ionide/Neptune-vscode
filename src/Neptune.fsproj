@@ -13,6 +13,8 @@
       <Link>paket-files/Helpers.fs</Link>
     </Compile>
     <None Include="paket.references" />
+    <Compile Include="TestExplorer.fs" />
+
     <Compile Include="neptune.fs" />
   </ItemGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />
