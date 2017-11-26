@@ -2,11 +2,13 @@ module Neptune
 
 open Fable.Core
 open Fable.Import
-open Fable.Import.vscode
+open vscode
+open JsInterop
 
 let activate (context : vscode.ExtensionContext) =
-    printfn "Hello world"
+    let df = createEmpty<DocumentFilter>
+    df.language <- Some "fsharp"
+    let df' : DocumentSelector = df |> U3.Case2
 
-    vscode.commands.registerCommand("extension.sayHello", fun _ ->
-        vscode.window.showInformationMessage "Hello world!" |> unbox )
-    |> context.subscriptions.Add
+
+    TestExplorer.activate df' context
