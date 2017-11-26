@@ -13,6 +13,9 @@
       <Link>paket-files/Helpers.fs</Link>
     </Compile>
     <None Include="paket.references" />
+    <Compile Include="Model.fs" />
+    <Compile Include="Utils.fs" />
+
     <Compile Include="TestExplorer.fs" />
 
     <Compile Include="neptune.fs" />

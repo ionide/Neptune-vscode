@@ -2,55 +2,18 @@ namespace Neptune.VSCode.FSharp
 
 open System
 open Fable.Core
-open Fable.Core.JsInterop
+open JsInterop
 open Fable.Import
-open Fable.Import.vscode
+open vscode
 open Fable.Import.Node
 
 open Ionide.VSCode.Helpers
 open System.Collections.Generic
+open Utils
+open Model
 
-[<AutoOpen>]
-module Utils =
-    let inline undefined<'a> = unbox<'a> ()
-
-[<RequireQualifiedAccess>]
-module Document =
-    let (|FSharp|CSharp|VB|Other|) (document : TextDocument) =
-        if document.languageId = "fsharp" then FSharp
-        else if document.languageId = "csharp" then CSharp
-        else if document.languageId = "vb" then VB
-        else Other
 
 module TestExplorer =
-    type TestState =
-        | Passed
-        | Ignored
-        | Failed
-        | NotRun
-
-    type CodeRange = Fable.Import.vscode.Range
-
-    type Range = {
-        StartColumn: int
-        StartLine: int
-        EndColumn: int
-        EndLine: int
-    }
-    with
-        static member toCodeRange (range: Range) =
-            CodeRange (float range.StartLine - 1.,
-                       float range.StartColumn - 1.,
-                       float range.EndLine - 1.,
-                       float range.EndColumn - 1.)
-
-    type TestEntry = {
-        Name : string
-        Range : Range
-        Childs : TestEntry []
-        Id : int
-        List: bool
-    }
 
     type TreeModel = {
         Name: string
@@ -182,8 +145,6 @@ module TestExplorer =
         flattedTests ()
         |> List.filter (fun n -> n.State = state)
 
-
-
     let private failedDecorationType =
         let opt = createEmpty<DecorationRenderOptions>
         let file = "testFailed.png"
@@ -239,25 +200,25 @@ module TestExplorer =
         let failed fn =
             getTests Failed
             |> List.filter (fun n -> n.FileName = fn && n.Childs.Length = 0)
-            |> List.map (fun n -> Range.toCodeRange n.Range)
+            |> List.map (fun n -> Range.ToCodeRange n.Range)
             |> ResizeArray
 
         let passed fn =
             getTests Passed
             |> List.filter (fun n -> n.FileName = fn && n.Childs.Length = 0)
-            |> List.map (fun n -> Range.toCodeRange n.Range )
+            |> List.map (fun n -> Range.ToCodeRange n.Range )
             |> ResizeArray
 
         let ignored fn =
             getTests Ignored
             |> List.filter (fun n -> n.FileName = fn && n.Childs.Length = 0)
-            |> List.map (fun n -> Range.toCodeRange n.Range )
+            |> List.map (fun n -> Range.ToCodeRange n.Range )
             |> ResizeArray
 
         let notRun fn =
             getTests NotRun
             |> List.filter (fun n -> n.FileName = fn && n.Childs.Length = 0)
-            |> List.map (fun n -> Range.toCodeRange n.Range)
+            |> List.map (fun n -> Range.ToCodeRange n.Range)
             |> ResizeArray
 
         window.visibleTextEditors
@@ -329,7 +290,7 @@ module TestExplorer =
         |> List.map (fun (fn, values) ->
             let diags =
                 values
-                |> List.map (fun v -> Diagnostic(Range.toCodeRange v.Range, v.ErrorMessage, DiagnosticSeverity.Error))
+                |> List.map (fun v -> Diagnostic(Range.ToCodeRange v.Range, v.ErrorMessage, DiagnosticSeverity.Error))
                 |> ResizeArray
 
             Uri.file fn, diags )
@@ -411,7 +372,7 @@ module TestExplorer =
                 flattedTests ()
                 |> Seq.where (fun t -> t.FileName = doc.fileName)
                 |> Seq.collect (fun t ->
-                    let range = Range.toCodeRange t.Range
+                    let range = Range.ToCodeRange t.Range
                     let commandRun = createEmpty<Command>
                     commandRun.title <- if t.Childs.Length > 0 then "Run Tests" else "Run Test"
                     commandRun.command <- if t.Childs.Length > 0 then "neptune.runList" else "neptune.runTest"
@@ -435,6 +396,8 @@ module TestExplorer =
         }
 
     let activate selector (context: ExtensionContext) =
+
+
         // Webhooks.testCallback <- handle
         // Expecto.testResultChanged.Publish.Add testResultHandler
         // Expecto.testTimerChanged.Publish.Add testTimerHandler
@@ -446,7 +409,7 @@ module TestExplorer =
             let uri = Uri.file entry.FileName
             workspace.openTextDocument(uri)
             |> Promise.map (fun td ->
-                vscode.window.showTextDocument td
+                window.showTextDocument td
                 |> Promise.map (fun te ->
                     te.revealRange (Range(float line, 0., float line, 0.), TextEditorRevealType.InCenter)))
             |> unbox
@@ -487,11 +450,11 @@ module TestExplorer =
         window.registerTreeDataProvider("neptune.testExplorer", createTreeProvider () )
         |> context.subscriptions.Add
 
-        vscode.languages.registerCodeLensProvider(selector, createCodeLensesProvider ())
+        languages.registerCodeLensProvider(selector, createCodeLensesProvider ())
         |> context.subscriptions.Add
 
         refresh.event.Invoke(unbox setDecorations)
         |> context.subscriptions.Add
 
-        vscode.window.onDidChangeActiveTextEditor.Invoke(unbox setDecorations)
+        window.onDidChangeActiveTextEditor.Invoke(unbox setDecorations)
         |> context.subscriptions.Add
