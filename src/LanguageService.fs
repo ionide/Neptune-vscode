@@ -6,6 +6,7 @@ open vscode
 open System
 open Fable.Core.JsInterop
 open Ionide.VSCode.Helpers
+open Model
 
 let ax =  Globals.require.Invoke "axios" |> unbox<Axios.AxiosStatic>
 
@@ -110,10 +111,11 @@ let private logIncomingResponseError requestId fsacAction (started: DateTime) (r
     log.Error (makeIncomingLogPrefix(requestId) + " {%s} ERROR in %s ms: %s Data=%j",
                 fsacAction, elapsed.TotalMilliseconds, r.ToString(), obj)
 
-let private request<'a, 'b> (fsacAction: string) requestId (obj : 'a) =
+let private request<'a, 'b> (action: string) (obj : 'a) =
     let started = DateTime.Now
-    let fullRequestUrl = url fsacAction requestId
-    logOutgoingRequest requestId fsacAction obj
+    let requestId = makeRequestId()
+    let fullRequestUrl = url action requestId
+    logOutgoingRequest requestId action obj
     let options =
         createObj [
             "proxy" ==> false
@@ -122,7 +124,7 @@ let private request<'a, 'b> (fsacAction: string) requestId (obj : 'a) =
     ax.post (fullRequestUrl, obj, unbox options)
     |> Promise.onFail (fun r ->
         // The outgoing request was not made
-        logIncomingResponseError requestId fsacAction started r
+        logIncomingResponseError requestId action started r
         null |> unbox
     )
     |> Promise.map(fun r ->
@@ -131,6 +133,94 @@ let private request<'a, 'b> (fsacAction: string) requestId (obj : 'a) =
             r.data |> unbox<string> |> ofJson<'b>
         with
         | ex ->
-            logIncomingResponse requestId fsacAction started r None (Some ex)
+            logIncomingResponse requestId action started r None (Some ex)
             null |> unbox
     )
+
+let parseRequest = request<ParseRequest, ParseResponse> "parse"
+let projectRequest = request<ProjectRequest, ProjectResponse> "project"
+
+
+let start' serverExe (args : string list) =
+    Promise.create (fun resolve reject ->
+        let child =
+            let spawnLogged path (args: string list) =
+                fsacStdoutWriter (sprintf "Running: %s %s\n" path (args |> String.concat " "))
+                ChildProcess.spawn(path, args |> ResizeArray)
+            spawnLogged serverExe
+                [ yield! args
+                  yield port ]
+
+        let mutable isResolvedAsStarted = false
+        child
+        |> Process.onOutput (fun buffer ->
+            let outputString = buffer.toString()
+            // Wait until Neptune server sends the 'listener started' magic string until
+            // we inform the caller that it's ready to accept requests.
+            let isStartedMessage = outputString.Contains "listener started in"
+            if isStartedMessage then
+                fsacStdoutWriter ("Resolving startup promise because Neptune printed the 'listener started' message")
+                fsacStdoutWriter "\n"
+                service <- Some child
+                resolve child
+                isResolvedAsStarted <- true
+
+            fsacStdoutWriter outputString
+        )
+        |> Process.onError (fun e ->
+            let error = unbox<JS.Error> e
+            fsacStdoutWriter (error.message)
+            if not isResolvedAsStarted then
+                reject (error.message)
+        )
+        |> Process.onErrorOutput (fun n ->
+            let buffer = unbox<Buffer.Buffer> n
+            fsacStdoutWriter (buffer.toString())
+            if not isResolvedAsStarted then
+                reject (buffer.toString())
+        )
+        |> ignore
+    )
+    |> Promise.onFail (fun err ->
+        log.Error("Failed to start Neptune server. %s", err)
+        if Process.isMono () then
+            "Failed to start Neptune server. Please check if mono is in PATH"
+            |> vscode.window.showErrorMessage
+            |> ignore)
+
+type [<RequireQualifiedAccess>] TargetRuntime = NET | NetcoreFdd
+
+let startServer () =
+    let fsacTargetRuntime =
+        match "Neptune.serverRuntime" |> Configuration.get "net" with
+        | "netcore" -> TargetRuntime.NetcoreFdd
+        | "net" | _ -> TargetRuntime.NET
+
+    let pluginPath =
+        try
+            (VSCode.getPluginPath "Ionide.neptune")
+        with
+        | _ -> (VSCode.getPluginPath "Ionide.Neptune")
+
+    match fsacTargetRuntime with
+    | TargetRuntime.NET ->
+        let path = pluginPath + "/bin/Neptune.exe"
+        let exe, args =
+            if Process.isMono () then
+                let mono = "Neptune.monoPath" |> Configuration.get "mono"
+                mono, [ yield path ]
+            else
+                path, []
+        start' exe args
+    | TargetRuntime.NetcoreFdd ->
+        let path = pluginPath + "/bin_netcore/Neptune.dll"
+        start' "dotnet" [ path ]
+
+let start () =
+    if devMode then Promise.empty else startServer ()
+    |> Promise.map (ignore)
+
+let stop () =
+    service |> Option.iter (fun n -> n.kill "SIGKILL")
+    service <- None
+    ()

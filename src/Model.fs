@@ -29,3 +29,22 @@ type TestEntry = {
     List: bool
     Type: string
 }
+
+type ParseRequest = {
+    FileName: string
+    Content: string
+}
+
+type ProjectRequest = {
+    FileName: string
+    Files: string []
+}
+
+type ParseResponse = {
+    FileName: string
+    Tests: TestEntry []
+}
+
+type ProjectResponse = {
+    Data: ParseResponse []
+}
