@@ -12,7 +12,21 @@ open System.Collections.Generic
 open Utils
 open Model
 
-type TreeModel = {
+type TestResult = {
+    FullName: string
+    State: TestState
+    Timer: string
+    ErrorMessage: string
+}
+
+type ITestRunner =
+    abstract member GetTypeName : unit -> string
+    abstract member ShouldProjectBeRun: Project -> bool
+    abstract member RunAll: Project list -> JS.Promise<TestResult list>
+    abstract member RunTests: (Project * string list) list -> JS.Promise<TestResult list>
+    abstract member RunList: (Project * string) -> JS.Promise<TestResult list>
+
+type private TreeModel = {
     Name: string
     FullName: string
     Range: Range
@@ -23,9 +37,10 @@ type TreeModel = {
     Childs: TreeModel []
     List: bool
     Id : int
+    Type : string
 }
 
-let emptyModel = {
+let private emptyModel = {
     Name = ""
     FullName = ""
     Range = {StartColumn = 0; StartLine = 0; EndColumn = 0; EndLine = 0}
@@ -36,9 +51,19 @@ let emptyModel = {
     ErrorMessage = ""
     List = false
     Id = -1
+    Type = ""
 }
 
-let rec ofTestEntry fileName state prefix (oldTests: TreeModel list)  (input: TestEntry) =
+let private state = Dictionary<ProjectFilePath, Project>()
+
+let private getProjectList () = state.Values |> Seq.toList
+let private getProjectForFile fn = state.Values |> Seq.tryFind (fun pr -> pr.Files |> List.contains fn )
+
+let private register = Dictionary<string, ITestRunner>()
+
+let registerTestRunner id (runner: #ITestRunner) = register.[id] <- runner
+
+let rec private ofTestEntry fileName state prefix (oldTests: TreeModel list)  (input: TestEntry) =
     let fullname = prefix + "/" + input.Name
     let rangeEquals (o : Range) (i : Range) =
         if JS.isDefined o && JS.isDefined i then
@@ -72,9 +97,10 @@ let rec ofTestEntry fileName state prefix (oldTests: TreeModel list)  (input: Te
         Childs = input.Childs |> Array.map (ofTestEntry fileName state fullname oldTests)
         List = input.List
         Id = input.Id
+        Type = input.Type
     }
 
-let rec updateState (name : string list) state (model : TreeModel) =
+let rec private updateState (name : string list) state (model : TreeModel) =
     match name with
     | [] -> ()
     | [x] ->
@@ -89,7 +115,7 @@ let rec updateState (name : string list) state (model : TreeModel) =
         | None -> ()
         | Some s -> updateState xs state s
 
-let rec updateTimer (name : string list) timer (model : TreeModel) =
+let rec private updateTimer (name : string list) timer (model : TreeModel) =
     match name with
     | [] -> ()
     | [x] ->
@@ -102,7 +128,7 @@ let rec updateTimer (name : string list) timer (model : TreeModel) =
         | None -> ()
         | Some s -> updateTimer xs timer s
 
-let rec updateError (name : string list) error (model : TreeModel) =
+let rec private updateError (name : string list) error (model : TreeModel) =
     match name with
     | [] -> ()
     | [x] ->
@@ -114,7 +140,7 @@ let rec updateError (name : string list) error (model : TreeModel) =
         match model.Childs |> Seq.tryFind (fun n -> n.Name.Trim() = (x.Trim('"', ' ')) ) with
         | None -> ()
         | Some s -> updateError xs error s
-let mutable display = 0
+let mutable private display = 0
 
 let private getIconPath light dark =
     let plugPath =
@@ -127,9 +153,9 @@ let private getIconPath light dark =
     p.dark <- Path.join(plugPath, "images", dark)
     p.light <- Path.join(plugPath, "images", light)
     p
-let tests = Dictionary<string, TreeModel []>()
+let private tests = Dictionary<string, TreeModel []>()
 
-let flattedTests () =
+let private flattedTests () =
     let rec flatten model =
         model::(model.Childs |> Array.toList |> List.collect flatten)
     tests
@@ -138,7 +164,7 @@ let flattedTests () =
     |> Seq.toList
     |> List.collect flatten
 
-let getTests state =
+let private getTests state =
     flattedTests ()
     |> List.filter (fun n -> n.State = state)
 
@@ -238,17 +264,17 @@ let private setDecorations () =
 
     ()
 
-let refresh = EventEmitter<TreeModel> ()
+let private refresh = EventEmitter<TreeModel> ()
 
-let diagnostcs = languages.createDiagnosticCollection()
+let private diagnostcs = languages.createDiagnosticCollection()
 
-let handle (input : ParseResponse) =
+let private handle (input : ParseResponse) =
     if input.Tests.Length > 0 then
         let oldTests = flattedTests ()
         tests.[input.FileName] <- input.Tests |> Array.map (ofTestEntry input.FileName NotRun "" oldTests)
         refresh.fire undefined
 
-let parseTextDocument document =
+let private parseTextDocument document =
     match document with
     | Document.FSharp ->
         let txt = document.getText()
@@ -258,15 +284,18 @@ let parseTextDocument document =
         |> unbox
     | _ -> undefined
 
-let parseProject projectName files =
-    let request = {ProjectRequest.FileName = projectName; Files = files }
+let private parseProject projectName files =
+    let request = {ProjectRequest.FileName = projectName; Files = List.toArray files }
     LanguageService.projectRequest request
     |> Promise.onSuccess (fun n ->
         n.Data |> Seq.iter handle
     )
     |> unbox
 
-let testResultHandler (state : TestState, names: string []) =
+let private handleTestResults (results: TestResult list) =
+    ()
+
+let private testResultHandler (state : TestState, names: string []) =
     names
     |> Seq.iter (fun name ->
         let indents = name.Split ('/') |> Seq.toList
@@ -277,7 +306,7 @@ let testResultHandler (state : TestState, names: string []) =
     refresh.fire undefined
     ()
 
-let testTimerHandler (changes: (string * string) []) =
+let private testTimerHandler (changes: (string * string) []) =
     changes
     |> Seq.iter (fun (name, timer) ->
         let indents = name.Split ('/') |> Seq.toList
@@ -288,7 +317,7 @@ let testTimerHandler (changes: (string * string) []) =
     refresh.fire undefined
     ()
 
-let testErrorHandler (changes: (string * string) []) =
+let private testErrorHandler (changes: (string * string) []) =
     printfn "CHANGES: %A" changes
     changes
     |> Seq.iter (fun (name, error) ->
@@ -311,7 +340,7 @@ let testErrorHandler (changes: (string * string) []) =
     |> diagnostcs.set
 
 
-let createTreeProvider () : TreeDataProvider<TreeModel> =
+let private createTreeProvider () : TreeDataProvider<TreeModel> =
     { new TreeDataProvider<TreeModel>
       with
         member __.onDidChangeTreeData =
@@ -379,7 +408,7 @@ let createTreeProvider () : TreeDataProvider<TreeModel> =
             ti
     }
 
-let createCodeLensesProvider () =
+let private createCodeLensesProvider () =
     { new CodeLensProvider with
         member __.provideCodeLenses(doc, _) =
             flattedTests ()
@@ -410,17 +439,11 @@ let createCodeLensesProvider () =
 
 
 
-let activate selector (context: ExtensionContext) (projectLoadedEvent : Event<string*string[]>) =
-
-
-    // Webhooks.testCallback <- handle
-    // Expecto.testResultChanged.Publish.Add testResultHandler
-    // Expecto.testTimerChanged.Publish.Add testTimerHandler
-    // Expecto.testErrorMessageChanged.Publish.Add testErrorHandler
-
+let activate selector (context: ExtensionContext) (api : Api) =
     workspace.onDidChangeTextDocument.Invoke(fun te -> parseTextDocument te.document) |> context.subscriptions.Add
-    projectLoadedEvent.Invoke(fun (projectName, files) -> parseProject projectName files) |> context.subscriptions.Add
-    window.visibleTextEditors |> Seq.iter (fun te -> parseTextDocument te.document)
+    api.ProjectLoadedEvent.Invoke(fun pr ->
+        state.[pr.Project] <- pr
+        parseProject pr.Project pr.Files) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.testExplorer.goTo", Func<obj, obj>(fun n ->
         let entry = unbox<TreeModel> n
@@ -447,8 +470,20 @@ let activate selector (context: ExtensionContext) (projectLoadedEvent : Event<st
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.runAll", Func<obj, obj>(fun _ ->
-        // Expecto.runAllTests ()
-        () |> unbox
+        let projects = getProjectList ()
+        register.Values
+        |> Seq.map (fun r ->
+            let prjs = projects |> List.filter r.ShouldProjectBeRun
+            r.RunAll prjs )
+        |> Seq.toArray
+        |> Promise.all
+        |> Promise.onSuccess (fun n ->
+            n
+            |> Seq.toList
+            |> List.collect id
+            |> handleTestResults
+
+        ) |> unbox
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.runFailed", Func<obj, obj>(fun _ ->
