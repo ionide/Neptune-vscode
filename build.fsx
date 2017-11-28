@@ -25,8 +25,19 @@ Target "YarnInstall" <| fun () ->
 Target "DotNetRestore" <| fun () ->
     DotNetCli.Restore (fun p -> { p with WorkingDir = "src" } )
 
+let releaseBin      = "release/bin"
+let neptuneBin         = "paket-files/github.com/Krzysztof-Cieslak/Neptune/build"
+
+Target "CopyNeptune" (fun _ ->
+    ensureDirectory releaseBin
+    CleanDir releaseBin
+
+    !! (neptuneBin + "/*")
+    |> CopyFiles releaseBin
+)
+
 let runFable additionalArgs =
-    let path = Path.GetFullPath "./webpack.config.js"
+    let path = Path.Combine(__SOURCE_DIRECTORY__, "webpack.config.js")
     let cmd = sprintf "fable webpack -- --config %s %s" path additionalArgs
     DotNetCli.RunCommand (fun p -> { p with WorkingDir = "src" } ) cmd
 
@@ -50,6 +61,7 @@ Target "Default" DoNothing
 "DotNetRestore" ?=> "RunScript"
 
 "Clean"
+==> "CopyNeptune"
 ==> "RunScript"
 ==> "Default"
 
