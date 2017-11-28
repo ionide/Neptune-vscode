@@ -70,7 +70,7 @@ let createConfiguredLoggers source channelName =
 
     editorSideLogger, fsacStdOutWriter
 
-let log, fsacStdoutWriter = createConfiguredLoggers "IONIDE-FSAC" "F# Language Service"
+let log, fsacStdoutWriter = createConfiguredLoggers "NEPTUNE" "Neptune"
 
 
 
@@ -97,11 +97,11 @@ let private logOutgoingRequest requestId (fsacAction:string) obj =
     // what's happening, without being bombarded with too much detail
     log.Debug (makeOutgoingLogPrefix(requestId) + " {%s}\nData=%j", fsacAction, obj)
 
-let private logIncomingResponse requestId fsacAction (started: DateTime) (r: Axios.AxiosXHR<_>) (res: _ option) (ex: exn option) =
+let private logIncomingResponse requestId fsacAction (started: DateTime) (res: _ option) (ex: exn option) =
     let elapsed = DateTime.Now - started
     match res, ex with
     | Some res, None ->
-        log.Debug(makeIncomingLogPrefix(requestId) + " {%s} in %s ms:\nData=%j", fsacAction, elapsed.TotalMilliseconds, res?Data)
+        log.Debug(makeIncomingLogPrefix(requestId) + " {%s} in %s ms:\nData=%j", fsacAction, elapsed.TotalMilliseconds, res)
     | None, Some ex ->
         log.Error (makeIncomingLogPrefix(requestId) + " {%s} ERROR in %s ms: {%j}, Data=%j", fsacAction, elapsed.TotalMilliseconds, ex.ToString(), obj)
     | _, _ -> log.Error(makeIncomingLogPrefix(requestId) + " {%s} ERROR in %s ms: %j, %j, %j", fsacAction, elapsed.TotalMilliseconds, res, ex.ToString(), obj)
@@ -130,10 +130,11 @@ let private request<'a, 'b> (action: string) (obj : 'a) =
     |> Promise.map(fun r ->
         // the outgoing request was made
         try
-            r.data |> unbox<string> |> ofJson<'b>
+            logIncomingResponse requestId action started (r.data) None
+            r.data |> unbox<'b>
         with
         | ex ->
-            logIncomingResponse requestId action started r None (Some ex)
+            logIncomingResponse requestId action started None (Some ex)
             null |> unbox
     )
 

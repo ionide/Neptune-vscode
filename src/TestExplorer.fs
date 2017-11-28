@@ -12,7 +12,6 @@ open System.Collections.Generic
 open Utils
 open Model
 
-
 type TreeModel = {
     Name: string
     FullName: string
@@ -243,12 +242,21 @@ let refresh = EventEmitter<TreeModel> ()
 
 let diagnostcs = languages.createDiagnosticCollection()
 
-// let handle (input : TestResult) =
-//     printfn "TEST HANDLE: %A" input
-//     if input.Data.Tests.Length > 0 then
-//         let oldTests = flattedTests ()
-//         tests.[input.Data.FileName] <- input.Data.Tests |> Array.map (ofTestEntry input.Data.FileName NotRun "" oldTests)
-//         refresh.fire undefined
+let handle (input : ParseResponse) =
+    if input.Tests.Length > 0 then
+        let oldTests = flattedTests ()
+        tests.[input.FileName] <- input.Tests |> Array.map (ofTestEntry input.FileName NotRun "" oldTests)
+        refresh.fire undefined
+
+let parseTextDocument document =
+    match document with
+    | Document.FSharp ->
+        let txt = document.getText()
+        let request = {ParseRequest.Content = txt; FileName = document.fileName }
+        LanguageService.parseRequest request
+        |> Promise.onSuccess (handle)
+        |> unbox
+    | _ -> undefined
 
 
 let testResultHandler (state : TestState, names: string []) =
@@ -393,6 +401,8 @@ let createCodeLensesProvider () =
 
     }
 
+
+
 let activate selector (context: ExtensionContext) =
 
 
@@ -400,6 +410,9 @@ let activate selector (context: ExtensionContext) =
     // Expecto.testResultChanged.Publish.Add testResultHandler
     // Expecto.testTimerChanged.Publish.Add testTimerHandler
     // Expecto.testErrorMessageChanged.Publish.Add testErrorHandler
+
+    workspace.onDidChangeTextDocument.Invoke(fun te -> parseTextDocument te.document) |> context.subscriptions.Add
+    window.visibleTextEditors |> Seq.iter (fun te -> parseTextDocument te.document)
 
     commands.registerCommand("neptune.testExplorer.goTo", Func<obj, obj>(fun n ->
         let entry = unbox<TreeModel> n
@@ -454,5 +467,5 @@ let activate selector (context: ExtensionContext) =
     refresh.event.Invoke(unbox setDecorations)
     |> context.subscriptions.Add
 
-    window.onDidChangeActiveTextEditor.Invoke(unbox setDecorations)
+    window.onDidChangeVisibleTextEditors.Invoke(unbox setDecorations)
     |> context.subscriptions.Add
