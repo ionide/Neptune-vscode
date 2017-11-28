@@ -258,6 +258,13 @@ let parseTextDocument document =
         |> unbox
     | _ -> undefined
 
+let parseProject projectName files =
+    let request = {ProjectRequest.FileName = projectName; Files = files }
+    LanguageService.projectRequest request
+    |> Promise.onSuccess (fun n ->
+        n.Data |> Seq.iter handle
+    )
+    |> unbox
 
 let testResultHandler (state : TestState, names: string []) =
     names
@@ -403,7 +410,7 @@ let createCodeLensesProvider () =
 
 
 
-let activate selector (context: ExtensionContext) =
+let activate selector (context: ExtensionContext) (projectLoadedEvent : Event<string*string[]>) =
 
 
     // Webhooks.testCallback <- handle
@@ -412,6 +419,7 @@ let activate selector (context: ExtensionContext) =
     // Expecto.testErrorMessageChanged.Publish.Add testErrorHandler
 
     workspace.onDidChangeTextDocument.Invoke(fun te -> parseTextDocument te.document) |> context.subscriptions.Add
+    projectLoadedEvent.Invoke(fun (projectName, files) -> parseProject projectName files) |> context.subscriptions.Add
     window.visibleTextEditors |> Seq.iter (fun te -> parseTextDocument te.document)
 
     commands.registerCommand("neptune.testExplorer.goTo", Func<obj, obj>(fun n ->
