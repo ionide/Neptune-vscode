@@ -87,12 +87,25 @@
         "view/item/context": [
           {
             "command": "neptune.runList",
-            "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.group"
+            "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.group",
+            "group": "actions@1"
 
           },
           {
             "command": "neptune.runTest",
-            "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.test"
+            "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.test",
+            "group": "actions@1"
+          },
+          {
+            "command": "neptune.debugList",
+            "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.group",
+            "group": "actions@2"
+
+          },
+          {
+            "command": "neptune.debugTest",
+            "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.test",
+            "group": "actions@2"
           }
         ]
       }

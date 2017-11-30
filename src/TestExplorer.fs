@@ -101,47 +101,6 @@ let rec private ofTestEntry fileName state prefix (oldTests: TreeModel list)  (i
         Id = input.Id
         Type = input.Type
     }
-
-let rec private updateState (name : string list) state (model : TreeModel) =
-    match name with
-    | [] -> ()
-    | [x] ->
-        match model.Childs |> Seq.tryFind (fun n -> n.Name.Trim() = (x.Trim('"', ' '))) with
-        | None -> ()
-        | Some s ->
-            s.State <- state
-            s.Timer <- ""
-            s.ErrorMessage <- ""
-    | x::xs ->
-        match model.Childs |> Seq.tryFind (fun n -> n.Name.Trim() = (x.Trim('"', ' ')) ) with
-        | None -> ()
-        | Some s -> updateState xs state s
-
-let rec private updateTimer (name : string list) timer (model : TreeModel) =
-    match name with
-    | [] -> ()
-    | [x] ->
-        match model.Childs |> Seq.tryFind (fun n -> n.Name.Trim() = (x.Trim('"', ' '))) with
-        | None -> ()
-        | Some s ->
-            s.Timer <- timer
-    | x::xs ->
-        match model.Childs |> Seq.tryFind (fun n -> n.Name.Trim() = (x.Trim('"', ' ')) ) with
-        | None -> ()
-        | Some s -> updateTimer xs timer s
-
-let rec private updateError (name : string list) error (model : TreeModel) =
-    match name with
-    | [] -> ()
-    | [x] ->
-        match model.Childs |> Seq.tryFind (fun n -> n.Name.Trim() = (x.Trim('"', ' '))) with
-        | None -> ()
-        | Some s ->
-            s.ErrorMessage <- error
-    | x::xs ->
-        match model.Childs |> Seq.tryFind (fun n -> n.Name.Trim() = (x.Trim('"', ' ')) ) with
-        | None -> ()
-        | Some s -> updateError xs error s
 let mutable private display = 0
 
 let private getIconPath light dark =
@@ -437,67 +396,136 @@ let activate selector (context: ExtensionContext) (api : Api) =
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.runList", Func<obj, obj>(fun m ->
-        let m = unbox<TreeModel> m
-        match getProjectForFile m.FileName with
-        | None -> undefined
-        | Some prj ->
-            register.Values
-            |> Seq.choose (fun r ->
-                if r.ShouldProjectBeRun prj then
-                    Some (r.RunList (prj, m.FullName.Trim( '"', ' ', '\\', '/')))
-                else
-                    None
-            )
-            |> Promise.all
-            |> Promise.onSuccess (fun n ->
-                n
-                |> Seq.toList
-                |> List.collect id
-                |> handleTestResults
-            ) |> unbox
+        let m =
+            if JS.isDefined m then
+                Promise.lift <| unbox<TreeModel> m
+            else
+                let tests =
+                    flattedTests ()
+                    |> Seq.filter (fun n -> n.List)
+                    |> Seq.map (fun n ->
+                        let qpi = createEmpty<QuickPickItem>
+                        qpi.label <- n.Name
+                        qpi?data <- n
+                        qpi
+                    )
+                    |> ResizeArray
+
+                window.showQuickPick(U2.Case1 tests)
+                |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
+        m |> Promise.map (fun m ->
+            match getProjectForFile m.FileName with
+            | None -> undefined
+            | Some prj ->
+                register.Values
+                |> Seq.choose (fun r ->
+                    if r.ShouldProjectBeRun prj then
+                        Some (r.RunList (prj, m.FullName.Trim( '"', ' ', '\\', '/')))
+                    else
+                        None
+                )
+                |> Promise.all
+                |> Promise.onSuccess (fun n ->
+                    n
+                    |> Seq.toList
+                    |> List.collect id
+                    |> handleTestResults
+                )
+        ) |> unbox
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.runTest", Func<obj, obj>(fun m ->
-        let m = unbox<TreeModel> m
-        match getProjectForFile m.FileName with
-        | None -> undefined
-        | Some prj ->
-            let projectsWithTests = [prj, [m.FullName.Trim( '"', ' ', '\\', '/') ] ]
-            register.Values
-            |> Seq.map (fun r ->
-                let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
-                r.RunTests prjsWithTsts
-            )
-            |> Promise.all
-            |> Promise.onSuccess (fun n ->
-                n
-                |> Seq.toList
-                |> List.collect id
-                |> handleTestResults
-            ) |> unbox
+        let m =
+            if JS.isDefined m then
+                Promise.lift <| unbox<TreeModel> m
+            else
+                let tests =
+                    flattedTests ()
+                    |> Seq.filter (fun n -> not n.List)
+                    |> Seq.map (fun n ->
+                        let qpi = createEmpty<QuickPickItem>
+                        qpi.label <- n.Name
+                        qpi?data <- n
+                        qpi
+                    )
+                    |> ResizeArray
+                window.showQuickPick(U2.Case1 tests)
+                |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
+        m |> Promise.map (fun m ->
+            match getProjectForFile m.FileName with
+            | None -> undefined
+            | Some prj ->
+                let projectsWithTests = [prj, [m.FullName.Trim( '"', ' ', '\\', '/') ] ]
+                register.Values
+                |> Seq.map (fun r ->
+                    let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
+                    r.RunTests prjsWithTsts
+                )
+                |> Promise.all
+                |> Promise.onSuccess (fun n ->
+                    n
+                    |> Seq.toList
+                    |> List.collect id
+                    |> handleTestResults
+                )
+        ) |> unbox
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.debugList", Func<obj, obj>(fun m ->
-        let m = unbox<TreeModel> m
-        match getProjectForFile m.FileName with
-        | None ->
-            undefined
-        | Some prj ->
-            let r = register.Values|> Seq.find (fun r -> r.ShouldProjectBeRun prj)
-            r.DebugList (prj, m.FullName.Trim( '"', ' ', '\\', '/'))
-            |> unbox
+        let m =
+            if JS.isDefined m then
+                Promise.lift <| unbox<TreeModel> m
+            else
+                let tests =
+                    flattedTests ()
+                    |> Seq.filter (fun n -> n.List)
+                    |> Seq.map (fun n ->
+                        let qpi = createEmpty<QuickPickItem>
+                        qpi.label <- n.Name
+                        qpi?data <- n
+                        qpi
+                    )
+                    |> ResizeArray
+                window.showQuickPick(U2.Case1 tests)
+                |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
+        m |> Promise.map (fun m ->
+            match getProjectForFile m.FileName with
+            | None ->
+                undefined
+            | Some prj ->
+                let r = register.Values|> Seq.find (fun r -> r.ShouldProjectBeRun prj)
+                r.DebugList (prj, m.FullName.Trim( '"', ' ', '\\', '/'))
+        )
+        |> unbox
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.debugTest", Func<obj, obj>(fun m ->
-        printfn "DEBUG TEST CALLED: %A" m
+        let m =
+            if JS.isDefined m then
+                Promise.lift <| unbox<TreeModel> m
+            else
+                let tests =
+                    flattedTests ()
+                    |> Seq.filter (fun n -> not n.List)
+                    |> Seq.map (fun n ->
+                        let qpi = createEmpty<QuickPickItem>
+                        qpi.label <- n.Name
+                        qpi?data <- n
+                        qpi
+                    )
+                    |> ResizeArray
 
-        let m = unbox<TreeModel> m
-        match getProjectForFile m.FileName with
-        | None -> undefined
-        | Some prj ->
-            let r = register.Values|> Seq.find (fun r -> r.ShouldProjectBeRun prj)
-            r.DebugTest (prj, m.FullName.Trim( '"', ' ', '\\', '/'))
-            |> unbox
+                window.showQuickPick(U2.Case1 tests)
+                |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
+        m
+        |> Promise.map (fun m ->
+            match getProjectForFile m.FileName with
+            | None -> undefined
+            | Some prj ->
+                let r = register.Values|> Seq.find (fun r -> r.ShouldProjectBeRun prj)
+                r.DebugTest (prj, m.FullName.Trim( '"', ' ', '\\', '/'))
+        )
+        |> unbox
     )) |> context.subscriptions.Add
 
 
