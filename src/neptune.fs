@@ -17,5 +17,8 @@ let activate (context : vscode.ExtensionContext) =
 
     LanguageService.start ()
     |> Promise.onSuccess (fun _ ->
-        TestExplorer.activate df' context ext.exports)
+        TestExplorer.activate df' context ext.exports
+        ExpectoRunner.activate ext.exports
+
+        )
     |> ignore

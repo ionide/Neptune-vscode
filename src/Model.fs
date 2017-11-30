@@ -1,10 +1,11 @@
 module Model
 
+[<RequireQualifiedAccess>]
 type TestState =
-        | Passed
-        | Ignored
-        | Failed
-        | NotRun
+    | Passed
+    | Ignored
+    | Failed
+    | NotRun
 
 type CodeRange = Fable.Import.vscode.Range
 
@@ -90,4 +91,5 @@ type Project = {
 type Api = {
     ProjectLoadedEvent: Fable.Import.vscode.Event<Project>
     BuildProject: Project -> Fable.Import.JS.Promise<string>
+    GetProjectLauncher: Fable.Import.vscode.OutputChannel -> Project -> (string -> Fable.Import.JS.Promise<Fable.Import.Node.ChildProcess.ChildProcess>) option
 }

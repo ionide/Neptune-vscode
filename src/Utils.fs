@@ -6,6 +6,20 @@ module Utils =
     let inline undefined<'a> = unbox<'a> ()
 
 [<RequireQualifiedAccess>]
+module String =
+    let trim (s: string) = s.Trim()
+    let replace (oldVal: string) (newVal: string) (str: string) : string =
+        match str with
+        | null -> null
+        | _ -> str.Replace (oldVal, newVal)
+    let split seperator (s : string) = s.Split seperator
+
+    let endWith ending (s : string) = s.EndsWith ending
+
+    let startWith ending (s : string) = s.StartsWith ending
+
+
+[<RequireQualifiedAccess>]
 module Document =
 
     let (|FSharp|CSharp|VB|Other|) (document : TextDocument) =

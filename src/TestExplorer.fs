@@ -45,7 +45,7 @@ let private emptyModel = {
     FullName = ""
     Range = {StartColumn = 0; StartLine = 0; EndColumn = 0; EndLine = 0}
     FileName = ""
-    State = NotRun
+    State = TestState.NotRun
     Childs = [||]
     Timer = ""
     ErrorMessage = ""
@@ -61,7 +61,7 @@ let private getProjectForFile fn = state.Values |> Seq.tryFind (fun pr -> pr.Fil
 
 let private register = Dictionary<string, ITestRunner>()
 
-let registerTestRunner id (runner: #ITestRunner) = register.[id] <- runner
+let registerTestRunner id (runner: ITestRunner) = register.[id] <- runner
 
 let rec private ofTestEntry fileName state prefix (oldTests: TreeModel list)  (input: TestEntry) =
     let fullname = prefix + "/" + input.Name
@@ -221,25 +221,25 @@ let private notRunDecorationType =
 
 let private setDecorations () =
     let failed fn =
-        getTests Failed
+        getTests TestState.Failed
         |> List.filter (fun n -> n.FileName = fn && n.Childs.Length = 0)
         |> List.map (fun n -> Range.ToCodeRange n.Range)
         |> ResizeArray
 
     let passed fn =
-        getTests Passed
+        getTests TestState.Passed
         |> List.filter (fun n -> n.FileName = fn && n.Childs.Length = 0)
         |> List.map (fun n -> Range.ToCodeRange n.Range )
         |> ResizeArray
 
     let ignored fn =
-        getTests Ignored
+        getTests TestState.Ignored
         |> List.filter (fun n -> n.FileName = fn && n.Childs.Length = 0)
         |> List.map (fun n -> Range.ToCodeRange n.Range )
         |> ResizeArray
 
     let notRun fn =
-        getTests NotRun
+        getTests TestState.NotRun
         |> List.filter (fun n -> n.FileName = fn && n.Childs.Length = 0)
         |> List.map (fun n -> Range.ToCodeRange n.Range)
         |> ResizeArray
@@ -271,7 +271,7 @@ let private diagnostcs = languages.createDiagnosticCollection()
 let private handle (input : ParseResponse) =
     if input.Tests.Length > 0 then
         let oldTests = flattedTests ()
-        tests.[input.FileName] <- input.Tests |> Array.map (ofTestEntry input.FileName NotRun "" oldTests)
+        tests.[input.FileName] <- input.Tests |> Array.map (ofTestEntry input.FileName TestState.NotRun "" oldTests)
         refresh.fire undefined
 
 let private parseTextDocument document =
@@ -293,52 +293,29 @@ let private parseProject projectName files =
     |> unbox
 
 let private handleTestResults (results: TestResult list) =
-    ()
-
-let private testResultHandler (state : TestState, names: string []) =
-    names
-    |> Seq.iter (fun name ->
-        let indents = name.Split ('/') |> Seq.toList
-        let tsts = flattedTests ()
-        let mdl = {emptyModel with Childs = tsts |> List.toArray}
-        updateState indents state mdl
+    let tsts = flattedTests ()
+    results
+    |> Seq.iter (fun n ->
+        match tsts |> Seq.tryFind (fun t -> t.FullName.Trim( '"', ' ', '\\', '/') = n.FullName.Trim( '"', ' ', '\\', '/')) with
+        | None -> ()
+        | Some tst ->
+            tst.State <- n.State
+            tst.Timer <- n.Timer
+            tst.ErrorMessage <- n.ErrorMessage
     )
     refresh.fire undefined
-    ()
 
-let private testTimerHandler (changes: (string * string) []) =
-    changes
-    |> Seq.iter (fun (name, timer) ->
-        let indents = name.Split ('/') |> Seq.toList
-        let tsts = flattedTests ()
-        let mdl = {emptyModel with Childs = tsts |> List.toArray}
-        updateTimer indents timer mdl
-    )
-    refresh.fire undefined
-    ()
-
-let private testErrorHandler (changes: (string * string) []) =
-    printfn "CHANGES: %A" changes
-    changes
-    |> Seq.iter (fun (name, error) ->
-        let indents = name.Split ('/') |> Seq.toList
-        let tsts = flattedTests ()
-        let mdl = {emptyModel with Childs = tsts |> List.toArray}
-        updateError indents error mdl
-    )
     diagnostcs.clear()
-    getTests Failed
+    getTests TestState.Failed
     |> List.groupBy(fun n -> n.FileName )
     |> List.map (fun (fn, values) ->
         let diags =
             values
             |> List.map (fun v -> Diagnostic(Range.ToCodeRange v.Range, v.ErrorMessage, DiagnosticSeverity.Error))
             |> ResizeArray
-
         Uri.file fn, diags )
     |> ResizeArray
     |> diagnostcs.set
-
 
 let private createTreeProvider () : TreeDataProvider<TreeModel> =
     { new TreeDataProvider<TreeModel>
@@ -364,10 +341,10 @@ let private createTreeProvider () : TreeDataProvider<TreeModel> =
                     |> ResizeArray
                 else
                     [
-                        {emptyModel with Name = "Passed"; Childs = getTests Passed |> Array.ofList; List = true }
-                        {emptyModel with Name = "Failed"; Childs = getTests Failed |> Array.ofList; List = true }
-                        {emptyModel with Name = "Ignored"; Childs = getTests Ignored |> Array.ofList; List = true }
-                        {emptyModel with Name = "Not Run"; Childs = getTests NotRun |> Array.ofList; List = true }
+                        {emptyModel with Name = "Passed"; Childs = getTests TestState.Passed |> Array.ofList; List = true }
+                        {emptyModel with Name = "Failed"; Childs = getTests TestState.Failed |> Array.ofList; List = true }
+                        {emptyModel with Name = "Ignored"; Childs = getTests TestState.Ignored |> Array.ofList; List = true }
+                        {emptyModel with Name = "Not Run"; Childs = getTests TestState.NotRun |> Array.ofList; List = true }
                     ]
                     |> ResizeArray
 
@@ -387,10 +364,10 @@ let private createTreeProvider () : TreeDataProvider<TreeModel> =
                     Some <| getIconPath "icon-module-light.svg" "icon-module-dark.svg"
                 else
                     match node.State with
-                    | NotRun -> Some <| getIconPath "testNotRun.png" "testNotRun.png"
-                    | Passed -> Some <| getIconPath "testPassed.png" "testPassed.png"
-                    | Ignored -> Some <| getIconPath "testIgnored.png" "testIgnored.png"
-                    | Failed -> Some <| getIconPath "testFailed.png" "testFailed.png"
+                    | TestState.NotRun -> Some <| getIconPath "testNotRun.png" "testNotRun.png"
+                    | TestState.Passed -> Some <| getIconPath "testPassed.png" "testPassed.png"
+                    | TestState.Ignored -> Some <| getIconPath "testIgnored.png" "testIgnored.png"
+                    | TestState.Failed -> Some <| getIconPath "testFailed.png" "testFailed.png"
 
             ti.contextValue <-
                 if node.List then
