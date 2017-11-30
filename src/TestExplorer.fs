@@ -25,6 +25,8 @@ type ITestRunner =
     abstract member RunAll: Project list -> JS.Promise<TestResult list>
     abstract member RunTests: (Project * string list) list -> JS.Promise<TestResult list>
     abstract member RunList: (Project * string) -> JS.Promise<TestResult list>
+    abstract member DebugTest: (Project * string) -> JS.Promise<unit>
+    abstract member DebugList: (Project * string) -> JS.Promise<unit>
 
 type private TreeModel = {
     Name: string
@@ -474,6 +476,30 @@ let activate selector (context: ExtensionContext) (api : Api) =
                 |> handleTestResults
             ) |> unbox
     )) |> context.subscriptions.Add
+
+    commands.registerCommand("neptune.debugList", Func<obj, obj>(fun m ->
+        let m = unbox<TreeModel> m
+        match getProjectForFile m.FileName with
+        | None ->
+            undefined
+        | Some prj ->
+            let r = register.Values|> Seq.find (fun r -> r.ShouldProjectBeRun prj)
+            r.DebugList (prj, m.FullName.Trim( '"', ' ', '\\', '/'))
+            |> unbox
+    )) |> context.subscriptions.Add
+
+    commands.registerCommand("neptune.debugTest", Func<obj, obj>(fun m ->
+        printfn "DEBUG TEST CALLED: %A" m
+
+        let m = unbox<TreeModel> m
+        match getProjectForFile m.FileName with
+        | None -> undefined
+        | Some prj ->
+            let r = register.Values|> Seq.find (fun r -> r.ShouldProjectBeRun prj)
+            r.DebugTest (prj, m.FullName.Trim( '"', ' ', '\\', '/'))
+            |> unbox
+    )) |> context.subscriptions.Add
+
 
     commands.registerCommand("neptune.runAll", Func<obj, obj>(fun _ ->
         let projects = getProjectList ()

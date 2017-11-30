@@ -16,7 +16,7 @@ let devMode = false
 type LogConfigSetting = None | Output | DevConsole | Both
 let logLanguageServiceRequestsConfigSetting =
     try
-        match "FSharp.logLanguageServiceRequests" |> Configuration.get "output" with
+        match "Neptune.logLanguageServiceRequests" |> Configuration.get "output" with
         | "devconsole" -> LogConfigSetting.DevConsole
         | "output" -> LogConfigSetting.Output
         | "both" -> LogConfigSetting.Both
@@ -29,7 +29,7 @@ let createConfiguredLoggers source channelName =
 
     let logLanguageServiceRequestsOutputWindowLevel () =
         try
-            match "FSharp.logLanguageServiceRequestsOutputWindowLevel" |> Configuration.get "INFO" with
+            match "Neptune.logLanguageServiceRequestsOutputWindowLevel" |> Configuration.get "INFO" with
             | "DEBUG" -> Level.DEBUG
             | "INFO" -> Level.INFO
             | "WARN" -> Level.WARN

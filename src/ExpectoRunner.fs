@@ -219,6 +219,21 @@ let createRunner (api : Api) =
                 let projAndArgs = [proj, sprintf "--summary-location --debug --filter \"%s\"" list ]
                 projAndArgs |> List.toSeq |> runProjs api
             )
+        member __.DebugList projAndList =
+            let (proj, list) = projAndList
+            [proj]
+            |> buildProjs api
+            |> Promise.bind (fun _ ->
+                let args = [| "--summary-location" ; "--debug"; "--filter"; list|]
+                api.DebugProject proj args)
+
+        member __.DebugTest projAndTest =
+            let (proj, test) = projAndTest
+            [proj]
+            |> buildProjs api
+            |> Promise.bind (fun _ ->
+                let args = [| "--summary-location" ; "--debug"; "--run"; test|]
+                api.DebugProject proj args)
     }
 
 let activate api =

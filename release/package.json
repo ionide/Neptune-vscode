@@ -26,6 +26,16 @@
           "title": "Run Test"
         },
         {
+          "command": "neptune.debugList",
+          "category": "Tests",
+          "title": "Debug Tests"
+        },
+        {
+          "command": "neptune.debugTest",
+          "category": "Tests",
+          "title": "Debug Test"
+        },
+        {
           "command": "neptune.runAll",
           "category": "Tests",
           "title": "Run All",
