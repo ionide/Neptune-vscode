@@ -195,8 +195,30 @@ let createRunner (api : Api) =
                 projs |> Seq.map (fun p -> p, "--summary-location --debug")
                 |> runProjs api
             )
-        member __.RunTests testsByProj = Promise.empty
-        member __.RunList projAndList = Promise.empty
+        member __.RunTests testsByProj =
+            testsByProj
+            |> List.map fst
+            |> buildProjs api
+            |> Promise.bind (fun _ ->
+                testsByProj
+                |> Seq.map (fun (p, tests) ->
+                    let tst =
+                        tests
+                        |> Seq.map (fun t -> sprintf "\"%s\"" t )
+                        |> String.concat " "
+                    p, sprintf "--summary-location --debug --run %s" tst
+                )
+                |> runProjs api
+            )
+
+        member __.RunList projAndList =
+            let (proj, list) = projAndList
+            [proj]
+            |> buildProjs api
+            |> Promise.bind (fun _ ->
+                let projAndArgs = [proj, sprintf "--summary-location --debug --filter \"%s\"" list ]
+                projAndArgs |> List.toSeq |> runProjs api
+            )
     }
 
 let activate api =

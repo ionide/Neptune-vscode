@@ -395,11 +395,11 @@ let private createCodeLensesProvider () =
                 let commandRun = createEmpty<Command>
                 commandRun.title <- if t.Childs.Length > 0 then "Run Tests" else "Run Test"
                 commandRun.command <- if t.Childs.Length > 0 then "neptune.runList" else "neptune.runTest"
-                commandRun.arguments <- Some <| ResizeArray [| box t.FullName |]
+                commandRun.arguments <- Some <| ResizeArray [| box t |]
                 let commandDebug = createEmpty<Command>
                 commandDebug.title <- if t.Childs.Length > 0 then "Debug Tests" else "Debug Test"
                 commandDebug.command <- if t.Childs.Length > 0 then "neptune.debugList" else "neptune.debugTest"
-                commandDebug.arguments <- Some <| ResizeArray [| box t.FullName |]
+                commandDebug.arguments <- Some <| ResizeArray [| box t |]
                 [ CodeLens(range, commandRun); CodeLens(range, commandDebug) ]
 
             )
@@ -435,15 +435,44 @@ let activate selector (context: ExtensionContext) (api : Api) =
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.runList", Func<obj, obj>(fun m ->
-        // let m = unbox<TreeModel> m
-        // Expecto.runTestsList m.FullName
-        () |> unbox
+        let m = unbox<TreeModel> m
+        match getProjectForFile m.FileName with
+        | None -> undefined
+        | Some prj ->
+            register.Values
+            |> Seq.choose (fun r ->
+                if r.ShouldProjectBeRun prj then
+                    Some (r.RunList (prj, m.FullName.Trim( '"', ' ', '\\', '/')))
+                else
+                    None
+            )
+            |> Promise.all
+            |> Promise.onSuccess (fun n ->
+                n
+                |> Seq.toList
+                |> List.collect id
+                |> handleTestResults
+            ) |> unbox
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.runTest", Func<obj, obj>(fun m ->
-        // let m = unbox<TreeModel> m
-        // Expecto.runSingleTest m.FullName
-        () |> unbox
+        let m = unbox<TreeModel> m
+        match getProjectForFile m.FileName with
+        | None -> undefined
+        | Some prj ->
+            let projectsWithTests = [prj, [m.FullName.Trim( '"', ' ', '\\', '/') ] ]
+            register.Values
+            |> Seq.map (fun r ->
+                let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
+                r.RunTests prjsWithTsts
+            )
+            |> Promise.all
+            |> Promise.onSuccess (fun n ->
+                n
+                |> Seq.toList
+                |> List.collect id
+                |> handleTestResults
+            ) |> unbox
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.runAll", Func<obj, obj>(fun _ ->
@@ -452,23 +481,34 @@ let activate selector (context: ExtensionContext) (api : Api) =
         |> Seq.map (fun r ->
             let prjs = projects |> List.filter r.ShouldProjectBeRun
             r.RunAll prjs )
-        |> Seq.toArray
         |> Promise.all
         |> Promise.onSuccess (fun n ->
             n
             |> Seq.toList
             |> List.collect id
             |> handleTestResults
-
         ) |> unbox
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.runFailed", Func<obj, obj>(fun _ ->
-        // getTests Failed
-        // |> List.map (fun n -> n.FullName.TrimStart('/') )
-        // |> List.toArray
-        // |> Expecto.runMultipleTests
-        () |> unbox
+        let projectsWithTests =
+            getTests TestState.Failed
+            |> List.choose (fun t -> getProjectForFile t.FileName |> Option.map (fun p -> p, t))
+            |> List.groupBy fst
+            |> List.map (fun (p, lst) -> p, (lst |> List.map (fun (_, test) -> test.FullName.Trim( '"', ' ', '\\', '/') )) )
+
+        register.Values
+        |> Seq.map (fun r ->
+            let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
+            r.RunTests prjsWithTsts
+        )
+        |> Promise.all
+        |> Promise.onSuccess (fun n ->
+            n
+            |> Seq.toList
+            |> List.collect id
+            |> handleTestResults
+        ) |> unbox
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.changeDisplayMode", Func<obj, obj>(fun _ ->
