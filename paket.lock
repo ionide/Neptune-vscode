@@ -727,10 +727,10 @@ GITHUB
     src/Helpers.fs (5dda913d8d1b3fbc4c1d050a4978b78675cd766c)
 GIT
   remote: https://github.com/Krzysztof-Cieslak/Neptune.git
-     (6d51b7f173be09ec0c6b8d4395f31e80b681b382)
+     (a34247a820ece05d81788edba893936b220bcd50)
       build: build.cmd Publish
       os: windows
-     (6d51b7f173be09ec0c6b8d4395f31e80b681b382)
+     (a34247a820ece05d81788edba893936b220bcd50)
       build: build.sh Publish
       os: mono
 GROUP build
