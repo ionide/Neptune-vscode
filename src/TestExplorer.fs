@@ -225,7 +225,7 @@ let private setDecorations () =
 
     ()
 
-let private refresh = EventEmitter<TreeModel> ()
+let private refresh = EventEmitter<TreeModel option> ()
 
 let private diagnostcs = languages.createDiagnosticCollection()
 
