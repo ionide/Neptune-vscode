@@ -583,3 +583,6 @@ let activate selector (context: ExtensionContext) (api : Api) =
 
     window.onDidChangeVisibleTextEditors.Invoke(unbox setDecorations)
     |> context.subscriptions.Add
+
+    VSTestAdapterService.start()
+    |> ignore
