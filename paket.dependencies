@@ -14,6 +14,8 @@ github ionide/ionide-vscode-helpers src/Fable.Import.Axios.fs
 
 git https://github.com/Krzysztof-Cieslak/Neptune.git master build:"build.cmd Publish", OS: windows
 git https://github.com/Krzysztof-Cieslak/Neptune.git master build:"build.sh Publish", OS: mono
+git https://github.com/Krzysztof-Cieslak/Neptune-vstest.git master build:"build.cmd Publish", OS: windows
+git https://github.com/Krzysztof-Cieslak/Neptune-vstest.git master build:"build.sh Publish", OS: mono
 
 
 group build

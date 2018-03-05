@@ -21,6 +21,8 @@
     <Compile Include="Utils.fs" />
     <Compile Include="Logging.fs" />
     <Compile Include="LanguageService.fs" />
+    <Compile Include="VSTestAdapterService.fs" />
+
     <Compile Include="TestExplorer.fs" />
     <Compile Include="ExpectoRunner.fs" />
     <Compile Include="neptune.fs" />

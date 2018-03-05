@@ -623,10 +623,17 @@ GITHUB
     src/Helpers.fs (039192b97c6032495ab13e9c0ea5ea84c973cdbe)
 GIT
   remote: https://github.com/Krzysztof-Cieslak/Neptune.git
-     (6475718a4ca408a0c31f893aa26e38088fd8fa4a)
+     (6c4f33b718340c459508c4fc90037002fea37ca7)
       build: build.cmd Publish
       os: windows
-     (6475718a4ca408a0c31f893aa26e38088fd8fa4a)
+     (6c4f33b718340c459508c4fc90037002fea37ca7)
+      build: build.sh Publish
+      os: mono
+  remote: https://github.com/Krzysztof-Cieslak/Neptune-vstest.git
+     (6140888f1c4e16066cd28117ae391669decc05c2)
+      build: build.cmd Publish
+      os: windows
+     (6140888f1c4e16066cd28117ae391669decc05c2)
       build: build.sh Publish
       os: mono
 GROUP build

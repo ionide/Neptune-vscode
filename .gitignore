@@ -68,3 +68,4 @@ issueList.md
 release/package-lock\.json
 *.vsix
 release/bin
+release/bin_vstest

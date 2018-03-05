@@ -34,8 +34,22 @@ Target "CopyNeptune" (fun _ ->
 
     !! (neptuneBin + "/*")
     |> CopyFiles releaseBin
+
+    CopyDir (releaseBin </> "runtimes") (neptuneBin </> "runtimes") (fun _ -> true)
 )
 
+let releaseVSTestBin      = "release/bin_vstest"
+let neptuneVSTestBin         = "paket-files/github.com/Krzysztof-Cieslak/Neptune-vstest/build"
+
+Target "CopyNeptuneVSTest" (fun _ ->
+    ensureDirectory releaseVSTestBin
+    CleanDir releaseVSTestBin
+
+    !! (neptuneVSTestBin + "/*")
+    |> CopyFiles releaseVSTestBin
+
+    CopyDir (releaseVSTestBin </> "runtimes") (neptuneVSTestBin </> "runtimes") (fun _ -> true)
+)
 let runFable additionalArgs =
     let path = Path.Combine(__SOURCE_DIRECTORY__, "webpack.config.js")
     let cmd = sprintf "fable webpack -- --config %s %s" path additionalArgs
@@ -62,6 +76,7 @@ Target "Default" DoNothing
 
 "Clean"
 ==> "CopyNeptune"
+==> "CopyNeptuneVSTest"
 ==> "RunScript"
 ==> "Default"
 
