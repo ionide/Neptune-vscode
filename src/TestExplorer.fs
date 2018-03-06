@@ -26,8 +26,9 @@ type ITestRunner =
     abstract member RunAll: Project list -> JS.Promise<TestResult list>
     abstract member RunTests: (Project * string list) list -> JS.Promise<TestResult list>
     abstract member RunList: (Project * string) -> JS.Promise<TestResult list>
-    abstract member DebugTest: (Project * string) -> JS.Promise<unit>
-    abstract member DebugList: (Project * string) -> JS.Promise<unit>
+    abstract member DebugAll: Project list -> JS.Promise<TestResult list>
+    abstract member DebugTests: (Project * string list) list -> JS.Promise<TestResult list>
+    abstract member DebugList: (Project * string) -> JS.Promise<TestResult list>
 
 type private TreeModel = {
     Name: string
@@ -260,14 +261,14 @@ let private handleTestResults (results: TestResult list) =
     |> Seq.iter (fun n ->
         let name = n.FullName.Trim( '"', ' ', '\\', '/')
         let name =
-            if n.Runner = "NUnit" then
+            if n.Runner = "VSTest" then
                name.Replace('/', '.').Replace('\\', '.')
             else
                 name
         match tsts |> Seq.tryFind (fun t ->
             let tName = t.FullName.Trim( '"', ' ', '\\', '/')
             let tName =
-                if n.Runner = "NUnit" then
+                if n.Runner = "VSTest" then
                     tName.Replace('/', '.').Replace('\\', '.').Replace("this.", "") //TODO: THIS IS HACK, SHOULD BE HANDLED BY THE DETECTION SERVER
                 else
                     tName
@@ -448,6 +449,45 @@ let activate selector (context: ExtensionContext) (api : Api) =
         ) |> unbox
     )) |> context.subscriptions.Add
 
+    commands.registerCommand("neptune.debugList", Func<obj, obj>(fun m ->
+        let m =
+            if JS.isDefined m then
+                Promise.lift <| unbox<TreeModel> m
+            else
+                let tests =
+                    flattedTests ()
+                    |> Seq.filter (fun n -> n.List)
+                    |> Seq.map (fun n ->
+                        let qpi = createEmpty<QuickPickItem>
+                        qpi.label <- n.Name
+                        qpi?data <- n
+                        qpi
+                    )
+                    |> ResizeArray
+
+                window.showQuickPick(U2.Case1 tests)
+                |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
+        m |> Promise.map (fun m ->
+            match getProjectForFile m.FileName with
+            | None -> undefined
+            | Some prj ->
+                register.Values
+                |> Seq.choose (fun r ->
+                    if r.ShouldProjectBeRun prj then
+                        Some (r.DebugList (prj, m.FullName.Trim( '"', ' ', '\\', '/')))
+                    else
+                        None
+                )
+                |> Promise.all
+                |> Promise.onSuccess (fun n ->
+                    n
+                    |> Seq.toList
+                    |> List.collect id
+                    |> handleTestResults
+                )
+        ) |> unbox
+    )) |> context.subscriptions.Add
+
     commands.registerCommand("neptune.runTest", Func<obj, obj>(fun m ->
         let m =
             if JS.isDefined m then
@@ -485,34 +525,6 @@ let activate selector (context: ExtensionContext) (api : Api) =
         ) |> unbox
     )) |> context.subscriptions.Add
 
-    commands.registerCommand("neptune.debugList", Func<obj, obj>(fun m ->
-        let m =
-            if JS.isDefined m then
-                Promise.lift <| unbox<TreeModel> m
-            else
-                let tests =
-                    flattedTests ()
-                    |> Seq.filter (fun n -> n.List)
-                    |> Seq.map (fun n ->
-                        let qpi = createEmpty<QuickPickItem>
-                        qpi.label <- n.Name
-                        qpi?data <- n
-                        qpi
-                    )
-                    |> ResizeArray
-                window.showQuickPick(U2.Case1 tests)
-                |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
-        m |> Promise.map (fun m ->
-            match getProjectForFile m.FileName with
-            | None ->
-                undefined
-            | Some prj ->
-                let r = register.Values|> Seq.find (fun r -> r.ShouldProjectBeRun prj)
-                r.DebugList (prj, m.FullName.Trim( '"', ' ', '\\', '/'))
-        )
-        |> unbox
-    )) |> context.subscriptions.Add
-
     commands.registerCommand("neptune.debugTest", Func<obj, obj>(fun m ->
         let m =
             if JS.isDefined m then
@@ -528,18 +540,26 @@ let activate selector (context: ExtensionContext) (api : Api) =
                         qpi
                     )
                     |> ResizeArray
-
                 window.showQuickPick(U2.Case1 tests)
                 |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
-        m
-        |> Promise.map (fun m ->
+        m |> Promise.map (fun m ->
             match getProjectForFile m.FileName with
             | None -> undefined
             | Some prj ->
-                let r = register.Values|> Seq.find (fun r -> r.ShouldProjectBeRun prj)
-                r.DebugTest (prj, m.FullName.Trim( '"', ' ', '\\', '/'))
-        )
-        |> unbox
+                let projectsWithTests = [prj, [m.FullName.Trim( '"', ' ', '\\', '/') ] ]
+                register.Values
+                |> Seq.map (fun r ->
+                    let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
+                    r.DebugTests prjsWithTsts
+                )
+                |> Promise.all
+                |> Promise.onSuccess (fun n ->
+                    n
+                    |> Seq.toList
+                    |> List.collect id
+                    |> handleTestResults
+                )
+        ) |> unbox
     )) |> context.subscriptions.Add
 
 
@@ -549,6 +569,21 @@ let activate selector (context: ExtensionContext) (api : Api) =
         |> Seq.map (fun r ->
             let prjs = projects |> List.filter r.ShouldProjectBeRun
             r.RunAll prjs )
+        |> Promise.all
+        |> Promise.onSuccess (fun n ->
+            n
+            |> Seq.toList
+            |> List.collect id
+            |> handleTestResults
+        ) |> unbox
+    )) |> context.subscriptions.Add
+
+    commands.registerCommand("neptune.debugAll", Func<obj, obj>(fun _ ->
+        let projects = getProjectList ()
+        register.Values
+        |> Seq.map (fun r ->
+            let prjs = projects |> List.filter r.ShouldProjectBeRun
+            r.DebugAll prjs )
         |> Promise.all
         |> Promise.onSuccess (fun n ->
             n
@@ -579,12 +614,32 @@ let activate selector (context: ExtensionContext) (api : Api) =
         ) |> unbox
     )) |> context.subscriptions.Add
 
+    commands.registerCommand("neptune.debugFailed", Func<obj, obj>(fun _ ->
+        let projectsWithTests =
+            getTests TestState.Failed
+            |> List.choose (fun t -> getProjectForFile t.FileName |> Option.map (fun p -> p, t))
+            |> List.groupBy fst
+            |> List.map (fun (p, lst) -> p, (lst |> List.map (fun (_, test) -> test.FullName.Trim( '"', ' ', '\\', '/') )) )
+
+        register.Values
+        |> Seq.map (fun r ->
+            let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
+            r.DebugTests prjsWithTsts
+        )
+        |> Promise.all
+        |> Promise.onSuccess (fun n ->
+            n
+            |> Seq.toList
+            |> List.collect id
+            |> handleTestResults
+        ) |> unbox
+    )) |> context.subscriptions.Add
+
     commands.registerCommand("neptune.changeDisplayMode", Func<obj, obj>(fun _ ->
         if display = 0 then display <- 1 else display <- 0
         refresh.fire undefined
         |> unbox
     )) |> context.subscriptions.Add
-
 
     window.registerTreeDataProvider("neptune.testExplorer", createTreeProvider () )
     |> context.subscriptions.Add

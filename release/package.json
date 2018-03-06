@@ -36,6 +36,16 @@
           "title": "Debug Test"
         },
         {
+          "command": "neptune.debugAll",
+          "category": "Tests",
+          "title": "Debug All"
+        },
+        {
+          "command": "neptune.debugFailed",
+          "category": "Tests",
+          "title": "Debug Failed"
+        },
+        {
           "command": "neptune.runAll",
           "category": "Tests",
           "title": "Run All",
@@ -71,12 +81,14 @@
           {
             "command": "neptune.runAll",
             "group": "navigation@1",
-            "when": "view == neptune.testExplorer"
+            "when": "view == neptune.testExplorer",
+            "alt": "neptune.debugAll"
           },
           {
             "command": "neptune.runFailed",
             "group": "navigation@2",
-            "when": "view == neptune.testExplorer"
+            "when": "view == neptune.testExplorer",
+            "alt": "neptune.debugFailed"
           },
           {
             "command": "neptune.changeDisplayMode",

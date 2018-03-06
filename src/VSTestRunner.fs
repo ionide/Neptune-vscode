@@ -1,4 +1,4 @@
-module NUnitRunner
+module VSTestRunner
 
 open Model
 open TestExplorer
@@ -6,7 +6,6 @@ open Ionide.VSCode.Helpers
 open Fable.Core.JsInterop
 open Fable
 open Fable.Core
-open Fable.Import.vscode
 open Fable.Import.vscode
 
 type [<Pojo>] RequestLaunch =
@@ -31,9 +30,10 @@ let getXml (projs : Project[]) =
         if z.TargetFrameworkIdentifier = ".NETFramework" then
             sprintf """<?xml version="1.0" encoding="utf-8"?>
             <RunSettings>
-                 <RunConfiguration>
+                <RunConfiguration>
+                  <TargetPlatform>x64</TargetPlatform>
                   <TargetFrameworkVersion>.NETFramework,Version=%s</TargetFrameworkVersion>
-                 </RunConfiguration>
+                </RunConfiguration>
             </RunSettings>""" z.TargetFrameworkVersion
         else
             null
@@ -74,7 +74,7 @@ let toTestResult (testCase: obj) : TestResult =
         | 3 -> TestState.Ignored
         | _ -> TestState.NotRun
 
-    {FullName = name; ErrorMessage = error; State = state; Timer = timer; Runner = "NUnit" }
+    {FullName = name; ErrorMessage = error; State = state; Timer = timer; Runner = "VSTest" }
 
 
 let discoverTests (projs : Project[]) initial =
@@ -94,8 +94,11 @@ let discoverTests (projs : Project[]) initial =
         let res =
             res
             |> Array.collect (fun n ->
-                if (!!n?MessageType = "TestDiscovery.Completed") then
+                if (!!n?MessageType = "TestDiscovery.Completed") && !!n?Payload?LastDiscoveredTests <> null then
                     !!n?Payload?LastDiscoveredTests
+                    |> Array.map findId
+                elif !!n?MessageType = "TestDiscovery.TestFound" then
+                    !!n?Payload
                     |> Array.map findId
                 else
                     [||]
@@ -120,8 +123,11 @@ let runAllTests (projs: Project[]) initial =
         let res =
             res
             |> Array.collect (fun n ->
-                if (!!n?MessageType = "TestExecution.Completed") then
+                if !!n?MessageType = "TestExecution.Completed" && !!n?Payload?LastRunTests <> null then
                     !!n?Payload?LastRunTests?NewTestResults
+                    |> Array.map toTestResult
+                elif !!n?MessageType = "TestExecution.StatsChange" then
+                    !!n?Payload?NewTestResults
                     |> Array.map toTestResult
                 else
                     [||]
@@ -148,8 +154,11 @@ let runSomeTests (projs: Project[]) (tests: obj[]) initial =
             let res =
                 res
                 |> Array.collect (fun n ->
-                    if (!!n?MessageType = "TestExecution.Completed") then
+                    if ((!!n?MessageType = "TestExecution.Completed") && (!!n?Payload?LastRunTests <> null)) then
                         !!n?Payload?LastRunTests?NewTestResults
+                        |> Array.map toTestResult
+                    elif !!n?MessageType = "TestExecution.StatsChange" then
+                        !!n?Payload?NewTestResults
                         |> Array.map toTestResult
                     else
                         [||]
@@ -196,13 +205,20 @@ let debugAllTests (projs: Project[]) initial =
                 stopAtEntry = false
             }
         let folder = workspace.workspaceFolders.[0]
-        let! dbg = debug.startDebugging(folder, !!debugerCnf)
+        let! _ = debug.startDebugging(folder, !!debugerCnf)
+        let! id =
+            Promise.create(fun resolve error ->
+                debug.onDidReceiveDebugSessionCustomEvent.Invoke(!!(fun a ->
+                    if !!(a?body?systemProcessId) <> null then
+                        resolve a?body?systemProcessId
+                |> ignore
+                ))|> ignore )
         let o =
             createObj [
-                "MessageType" ==> "TestSession.CustomTestHostLaunchCallback"
+                "MessageType" ==> "TestExecution.CustomTestHostLaunchCallback"
                 "Payload" ==>
                     createObj [
-                        "HostProcessId" ==> debug.activeDebugSession.id
+                        "HostProcessId" ==> id
                         "ErrorMessage" ==> null
                     ]
             ]
@@ -212,8 +228,84 @@ let debugAllTests (projs: Project[]) initial =
         let res =
             res
             |> Array.collect (fun n ->
-                if (!!n?MessageType = "TestExecution.Completed") then
+                if ((!!n?MessageType = "TestExecution.Completed") && (!!n?Payload?LastRunTests <> null)) then
                     !!n?Payload?LastRunTests?NewTestResults
+                    |> Array.map toTestResult
+                elif !!n?MessageType = "TestExecution.StatsChange" then
+                    !!n?Payload?NewTestResults
+                    |> Array.map toTestResult
+                else
+                    [||]
+            )
+        return Array.append initial res
+    }
+
+let debugSomeTests (projs: Project[]) tests initial =
+
+    let xml = getXml projs
+    let o =
+        createObj [
+            "MessageType" ==> "TestExecution.GetTestRunnerProcessStartInfoForRunAll"
+            "Payload" ==>
+                createObj [
+                    "Sources" ==> null
+                    "TestCases" ==> tests
+                    "RunSettings" ==> xml
+                    "DebuggingEnabled" ==> true
+                ]
+        ]
+    let msg = Fable.Import.JS.JSON.stringify o
+    promise {
+        let! res = VSTestAdapterService.vstestRequest msg
+        let res = res.[0]
+        let fn = !!res?Payload?FileName
+        let args = !!res?Payload?Arguments
+        let cwd = !!res?Payload?WorkingDirectory
+        let typ =
+            if xml = null then "coreclr"
+            elif Fable.Import.Node.Globals.``process``.platform = Fable.Import.Node.Base.NodeJS.Platform.Win32 then "clr"
+            else "mono"
+        let debugerCnf =
+            {
+                name = "VSTest Debug"
+                ``type`` = typ
+                request = "launch"
+                preLaunchTask = None
+                program = fn
+                args = args
+                cwd = cwd
+                console = "externalTerminal"
+                stopAtEntry = false
+            }
+        let folder = workspace.workspaceFolders.[0]
+        let! _ = debug.startDebugging(folder, !!debugerCnf)
+        let! id =
+            Promise.create(fun resolve error ->
+                debug.onDidReceiveDebugSessionCustomEvent.Invoke(!!(fun a ->
+                    if !!(a?body?systemProcessId) <> null then
+                        resolve a?body?systemProcessId
+                |> ignore
+                ))|> ignore )
+        let o =
+            createObj [
+                "MessageType" ==> "TestExecution.CustomTestHostLaunchCallback"
+                "Payload" ==>
+                    createObj [
+                        "HostProcessId" ==> id
+                        "ErrorMessage" ==> null
+                    ]
+            ]
+        let msg = Fable.Import.JS.JSON.stringify o
+        let! res = VSTestAdapterService.vstestRequest msg
+
+        let res =
+            res
+            |> Array.collect (fun n ->
+                if ((!!n?MessageType = "TestExecution.Completed") && (!!n?Payload?LastRunTests <> null)) then
+                    !!n?Payload?LastRunTests?NewTestResults
+                    |> Array.map toTestResult
+                elif !!n?MessageType = "TestExecution.StatsChange" then
+                    !!n?Payload?NewTestResults
                     |> Array.map toTestResult
                 else
                     [||]
@@ -223,8 +315,8 @@ let debugAllTests (projs: Project[]) initial =
 
 let createRunner (api : Api) =
     { new TestExplorer.ITestRunner with
-        member __.GetTypeName() = "NUnit"
-        member __.ShouldProjectBeRun proj = proj.References |> List.exists (fun r -> r.EndsWith "nunit.framework.dll" )
+        member __.GetTypeName() = "VSTest"
+        member __.ShouldProjectBeRun proj = proj.References |> List.exists (fun r -> r.EndsWith "nunit.framework.dll" || r.EndsWith "xunit.assert.dll" )
         member __.RunAll projs =
             projs
             |> buildProjs api
@@ -340,8 +432,49 @@ let createRunner (api : Api) =
             )
 
         member __.DebugList projAndList =
-            let (proj,_) = projAndList
-            let projs = [proj]
+            let (proj, list) = projAndList
+
+            [proj]
+            |> buildProjs api
+            |> Promise.bind (fun _ ->
+                let outs =
+                    [proj]
+                    |> Seq.toArray
+                    |> Array.filter (fun p -> match p.Info with | ProjectResponseInfo.DotnetSdk _ -> true | _ -> false)
+                    |> Array.groupBy (fun p -> match p.Info with | ProjectResponseInfo.DotnetSdk z -> z.TargetFramework | _ -> "" )
+                    |> Array.toList
+
+                let vstest =
+                    match outs with
+                    | [] -> Promise.empty
+                    | [ (_, projs) ] -> discoverTests projs [||]
+                    | (_, projs)::xs ->
+                        xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> discoverTests e acc)) (discoverTests projs [||])
+                vstest
+                |> Promise.bind (fun n ->
+                    let results =
+                        let tests =
+                            n
+                            |> Array.filter (fun (n, _) ->
+                                let n = n.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.')
+                                let l = list.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.') + "."
+                                n.StartsWith l
+                            )
+                            |> Array.map snd
+
+                        match outs with
+                        | [] -> Promise.empty
+                        | [ (_, projs) ] ->
+                            debugSomeTests projs tests [||]
+                        | (_, projs)::xs ->
+                            xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> debugSomeTests e (tests) acc)) (debugSomeTests projs (tests) [||])
+
+                    results
+                    |> Promise.map (Array.toList)
+                )
+            )
+
+        member __.DebugAll projs =
             projs
             |> buildProjs api
             |> Promise.bind (fun _ ->
@@ -360,14 +493,59 @@ let createRunner (api : Api) =
 
                 results
                 |> Promise.map (Array.toList)
-                |> Promise.map ignore
             )
 
+        member __.DebugTests testsByProj =
+            let proj =
+                testsByProj
+                |> List.map fst
 
-        member __.DebugTest projAndTest =
-            Promise.empty
+            proj
+            |> buildProjs api
+            |> Promise.bind (fun _ ->
+                let outs =
+                    proj
+                    |> Seq.toArray
+                    |> Array.filter (fun p -> match p.Info with | ProjectResponseInfo.DotnetSdk _ -> true | _ -> false)
+                    |> Array.groupBy (fun p -> match p.Info with | ProjectResponseInfo.DotnetSdk z -> z.TargetFramework | _ -> "" )
+                    |> Array.toList
+
+                let vstest =
+                    match outs with
+                    | [] -> Promise.empty
+                    | [ (_, projs) ] -> discoverTests projs [||]
+                    | (_, projs)::xs ->
+                        xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> discoverTests e acc)) (discoverTests projs [||])
+                vstest
+                |> Promise.bind (fun n ->
+                    let results =
+                        let getTests (ps : Project []) =
+                            let names =
+                                testsByProj
+                                |> List.collect (fun (p, ts) -> if ps |> Array.contains p then ts else [])
+                                |> List.map (fun t -> t.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.').Replace("this.", "") )
+
+                            n
+                            |> Array.filter (fun (n, _) ->
+                                let n = n.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.')
+                                names |> List.contains n
+                            )
+                            |> Array.map snd
+
+                        match outs with
+                        | [] -> Promise.empty
+                        | [ (_, projs) ] ->
+                            let tests = getTests projs
+                            debugSomeTests projs tests [||]
+                        | (_, projs)::xs ->
+                            xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> debugSomeTests e (getTests e) acc)) (debugSomeTests projs (getTests projs) [||])
+
+                    results
+                    |> Promise.map (Array.toList)
+                )
+            )
 
     }
 
 let activate api =
-    registerTestRunner "NUnit" (createRunner api)
+    registerTestRunner "VSTest" (createRunner api)

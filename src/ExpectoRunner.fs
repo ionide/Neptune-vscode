@@ -229,14 +229,28 @@ let createRunner (api : Api) =
             |> Promise.bind (fun _ ->
                 let args = [| "--summary-location" ; "--debug"; "--filter"; list|]
                 api.DebugProject proj args)
+            |> Promise.map (fun _ -> [])
 
-        member __.DebugTest projAndTest =
-            let (proj, test) = projAndTest
-            [proj]
+        member __.DebugTests testsByProj =
+            testsByProj
+            |> List.map fst
             |> buildProjs api
             |> Promise.bind (fun _ ->
-                let args = [| "--summary-location" ; "--debug"; "--run"; test|]
-                api.DebugProject proj args)
+                testsByProj
+                |> Seq.map (fun (p, tests) ->
+                    let tst =
+                        tests
+                        |> Seq.map (fun t -> sprintf "\"%s\"" t )
+                        |> String.concat " "
+                    api.DebugProject p [| "--summary-location" ; "--debug"; "--run"; tst|]
+                )
+                |> Seq.toArray
+                |> Promise.all
+            )
+            |> Promise.map (fun _ -> [])
+
+        member __.DebugAll projs =
+            Promise.lift []
     }
 
 let activate api =
