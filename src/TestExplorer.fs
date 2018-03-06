@@ -17,6 +17,7 @@ type TestResult = {
     State: TestState
     Timer: string
     ErrorMessage: string
+    Runner: string
 }
 
 type ITestRunner =
@@ -257,7 +258,20 @@ let private handleTestResults (results: TestResult list) =
     let tsts = flattedTests ()
     results
     |> Seq.iter (fun n ->
-        match tsts |> Seq.tryFind (fun t -> t.FullName.Trim( '"', ' ', '\\', '/') = n.FullName.Trim( '"', ' ', '\\', '/')) with
+        let name = n.FullName.Trim( '"', ' ', '\\', '/')
+        let name =
+            if n.Runner = "NUnit" then
+               name.Replace('/', '.').Replace('\\', '.')
+            else
+                name
+        match tsts |> Seq.tryFind (fun t ->
+            let tName = t.FullName.Trim( '"', ' ', '\\', '/')
+            let tName =
+                if n.Runner = "NUnit" then
+                    tName.Replace('/', '.').Replace('\\', '.').Replace("this.", "") //TODO: THIS IS HACK, SHOULD BE HANDLED BY THE DETECTION SERVER
+                else
+                    tName
+            tName = name ) with
         | None -> ()
         | Some tst ->
             tst.State <- n.State

@@ -19,6 +19,6 @@ let activate (context : vscode.ExtensionContext) =
     |> Promise.onSuccess (fun _ ->
         TestExplorer.activate df' context ext.exports
         ExpectoRunner.activate ext.exports
-
+        NUnitRunner.activate ext.exports
         )
     |> ignore

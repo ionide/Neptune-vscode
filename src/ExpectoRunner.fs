@@ -164,21 +164,24 @@ let runProjs api projsWithArgs =
                 { FullName = name;
                   State = TestState.Failed
                   Timer = tryGetTime name
-                  ErrorMessage = tryGetError name } )
+                  ErrorMessage = tryGetError name
+                  Runner = "Expecto" } )
         let ignored =
             getIgnored ()
             |> Seq.map (fun name ->
                 { FullName = name;
                   State = TestState.Ignored
                   Timer = ""
-                  ErrorMessage = "" } )
+                  ErrorMessage = ""
+                  Runner = "Expecto"  } )
         let passed =
             getPassed ()
             |> Seq.map (fun name ->
                 { FullName = name;
                   State = TestState.Passed
                   Timer = tryGetTime name
-                  ErrorMessage = "" } )
+                  ErrorMessage = ""
+                  Runner = "Expecto" } )
         [ yield! failed; yield! ignored; yield! passed]
 
     )

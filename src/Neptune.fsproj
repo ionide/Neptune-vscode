@@ -25,6 +25,8 @@
 
     <Compile Include="TestExplorer.fs" />
     <Compile Include="ExpectoRunner.fs" />
+    <Compile Include="NUnitRunner.fs" />
+
     <Compile Include="neptune.fs" />
   </ItemGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />
