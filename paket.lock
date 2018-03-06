@@ -618,9 +618,9 @@ NUGET
       System.Xml.ReaderWriter (>= 4.3) - restriction: || (&& (< monoandroid) (< monotouch) (< net45) (>= netstandard1.3) (< win8) (< wpa81) (< xamarinios) (< xamarinmac) (< xamarintvos) (< xamarinwatchos)) (&& (< monoandroid) (< net45) (>= netstandard1.0) (< netstandard1.3) (< win8) (< wp8) (< wpa81)) (< portable-net45+win8+wp8+wpa81)
 GITHUB
   remote: ionide/ionide-vscode-helpers
-    src/Fable.Import.Axios.fs (039192b97c6032495ab13e9c0ea5ea84c973cdbe)
-    src/Fable.Import.VSCode.fs (039192b97c6032495ab13e9c0ea5ea84c973cdbe)
-    src/Helpers.fs (039192b97c6032495ab13e9c0ea5ea84c973cdbe)
+    src/Fable.Import.Axios.fs (771740b1b8be6479841e44804e311f42646d5345)
+    src/Fable.Import.VSCode.fs (771740b1b8be6479841e44804e311f42646d5345)
+    src/Helpers.fs (771740b1b8be6479841e44804e311f42646d5345)
 GIT
   remote: https://github.com/Krzysztof-Cieslak/Neptune.git
      (6c4f33b718340c459508c4fc90037002fea37ca7)
@@ -630,13 +630,13 @@ GIT
       build: build.sh Publish
       os: mono
   remote: https://github.com/Krzysztof-Cieslak/Neptune-vstest.git
-     (6140888f1c4e16066cd28117ae391669decc05c2)
+     (5969822d4409961c0988e69f915df5d1b24699c8)
       build: build.cmd Publish
       os: windows
-     (6140888f1c4e16066cd28117ae391669decc05c2)
+     (5969822d4409961c0988e69f915df5d1b24699c8)
       build: build.sh Publish
       os: mono
 GROUP build
 NUGET
   remote: https://www.nuget.org/api/v2
-    FAKE (4.64.6)
+    FAKE (4.64.9)

@@ -76,7 +76,7 @@ Target "Default" DoNothing
 
 "Clean"
 ==> "CopyNeptune"
-// ==> "CopyNeptuneVSTest"
+==> "CopyNeptuneVSTest"
 ==> "RunScript"
 ==> "Default"
 
