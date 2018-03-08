@@ -20,6 +20,14 @@ type TestResult = {
     Runner: string
 }
 
+type Capability =
+    | CanDebugSingle
+    | CanDebugList
+    | CanDebugAll
+    | CanRunSingle
+    | CanRunList
+    | CanRunAll
+
 type ITestRunner =
     abstract member GetTypeName : unit -> string
     abstract member ShouldProjectBeRun: Project -> bool
@@ -29,6 +37,7 @@ type ITestRunner =
     abstract member DebugAll: Project list -> JS.Promise<TestResult list>
     abstract member DebugTests: (Project * string list) list -> JS.Promise<TestResult list>
     abstract member DebugList: (Project * string) -> JS.Promise<TestResult list>
+    abstract member Capabilities : Project -> Capability list
 
 type private TreeModel = {
     Name: string

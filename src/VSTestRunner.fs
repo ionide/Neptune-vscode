@@ -27,16 +27,12 @@ let getXml (projs : Project[]) =
     let p = projs.[0]
     match p.Info with
     | ProjectResponseInfo.DotnetSdk z ->
-        if z.TargetFrameworkIdentifier = ".NETFramework" then
-            sprintf """<?xml version="1.0" encoding="utf-8"?>
-            <RunSettings>
-                <RunConfiguration>
-                  <TargetPlatform>x64</TargetPlatform>
-                  <TargetFrameworkVersion>.NETFramework,Version=%s</TargetFrameworkVersion>
-                </RunConfiguration>
-            </RunSettings>""" z.TargetFrameworkVersion
-        else
-            null
+        sprintf """<?xml version="1.0" encoding="utf-8"?>
+        <RunSettings>
+            <RunConfiguration>
+              <TargetFrameworkVersion>%s,Version=%s</TargetFrameworkVersion>
+            </RunConfiguration>
+        </RunSettings>""" z.TargetFrameworkIdentifier z.TargetFrameworkVersion
     | _ -> null
 
 let findId (testCase : obj) : string * obj =
@@ -188,20 +184,16 @@ let debugAllTests (projs: Project[]) initial =
         let fn = !!res?Payload?FileName
         let args = !!res?Payload?Arguments
         let cwd = !!res?Payload?WorkingDirectory
-        let typ =
-            if xml = null then "coreclr"
-            elif Fable.Import.Node.Globals.``process``.platform = Fable.Import.Node.Base.NodeJS.Platform.Win32 then "clr"
-            else "mono"
         let debugerCnf =
             {
                 name = "VSTest Debug"
-                ``type`` = typ
+                ``type`` = "coreclr"
                 request = "launch"
                 preLaunchTask = None
                 program = fn
                 args = args
                 cwd = cwd
-                console = "externalTerminal"
+                console = "integratedTerminal"
                 stopAtEntry = false
             }
         let folder = workspace.workspaceFolders.[0]
@@ -219,7 +211,7 @@ let debugAllTests (projs: Project[]) initial =
                 "Payload" ==>
                     createObj [
                         "HostProcessId" ==> id
-                        "ErrorMessage" ==> null
+                        "ErrorMessage" ==> ""
                     ]
             ]
         let msg = Fable.Import.JS.JSON.stringify o
@@ -261,20 +253,16 @@ let debugSomeTests (projs: Project[]) tests initial =
         let fn = !!res?Payload?FileName
         let args = !!res?Payload?Arguments
         let cwd = !!res?Payload?WorkingDirectory
-        let typ =
-            if xml = null then "coreclr"
-            elif Fable.Import.Node.Globals.``process``.platform = Fable.Import.Node.Base.NodeJS.Platform.Win32 then "clr"
-            else "mono"
         let debugerCnf =
             {
                 name = "VSTest Debug"
-                ``type`` = typ
+                ``type`` = "coreclr"
                 request = "launch"
                 preLaunchTask = None
                 program = fn
                 args = args
                 cwd = cwd
-                console = "externalTerminal"
+                console = "integratedTerminal"
                 stopAtEntry = false
             }
         let folder = workspace.workspaceFolders.[0]
@@ -292,7 +280,7 @@ let debugSomeTests (projs: Project[]) tests initial =
                 "Payload" ==>
                     createObj [
                         "HostProcessId" ==> id
-                        "ErrorMessage" ==> null
+                        "ErrorMessage" ==> ""
                     ]
             ]
         let msg = Fable.Import.JS.JSON.stringify o
@@ -544,7 +532,14 @@ let createRunner (api : Api) =
                     |> Promise.map (Array.toList)
                 )
             )
-
+        member __.Capabilities proj =
+            match proj.Info with
+            | ProjectResponseInfo.DotnetSdk z when z.TargetFrameworkIdentifier = ".NETFramework" ->
+                [Capability.CanRunAll; Capability.CanRunList; Capability.CanRunSingle]
+            | ProjectResponseInfo.DotnetSdk _ ->
+                [Capability.CanDebugAll; Capability.CanDebugList; Capability.CanDebugSingle; Capability.CanRunAll; Capability.CanRunList; Capability.CanRunSingle]
+            | _ ->
+                [Capability.CanRunAll; Capability.CanRunList; Capability.CanRunSingle]
     }
 
 let activate api =

@@ -251,6 +251,15 @@ let createRunner (api : Api) =
 
         member __.DebugAll projs =
             Promise.lift []
+
+        member __.Capabilities proj =
+            match proj.Info with
+            | ProjectResponseInfo.DotnetSdk z when z.TargetFrameworkIdentifier = ".NETFramework" ->
+                [Capability.CanRunAll; Capability.CanRunList; Capability.CanRunSingle]
+            | ProjectResponseInfo.DotnetSdk _ ->
+                [Capability.CanDebugAll; Capability.CanDebugList; Capability.CanDebugSingle; Capability.CanRunAll; Capability.CanRunList; Capability.CanRunSingle]
+            | _ ->
+                [Capability.CanRunAll; Capability.CanRunList; Capability.CanRunSingle]
     }
 
 let activate api =
