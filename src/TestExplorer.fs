@@ -110,7 +110,7 @@ let rec private ofTestEntry fileName state prefix (oldTests: TreeModel list)  (i
         Childs = input.Childs |> Array.map (ofTestEntry fileName state fullname oldTests)
         List = input.List
         Id = input.Id
-        Type = input.Type
+        Type = if input.Type = "NUnit" || input.Type = "XUnit" then "VSTest" else input.Type //TODO: Hack
     }
 let mutable private display = 0
 
@@ -355,10 +355,20 @@ let private createTreeProvider () : TreeDataProvider<TreeModel> =
                     | TestState.Failed -> Some <| getIconPath "testFailed.png" "testFailed.png"
 
             ti.contextValue <-
+                let runner = register.[node.Type]
+                match getProjectForFile node.FileName with
+                | None -> None
+                | Some project ->
                 if node.List then
-                    Some "neptune.testExplorer.group"
+                    let x = "neptune.testExplorer.group"
+                    let x = if (runner.Capabilities project |> List.contains CanRunList) then x + "Run" else x
+                    let x = if (runner.Capabilities project |> List.contains CanDebugList) then x + "Debug" else x
+                    Some x
                 else
-                    Some "neptune.testExplorer.test"
+                    let x = "neptune.testExplorer.test"
+                    let x = if (runner.Capabilities project |> List.contains CanRunSingle) then x + "Run" else x
+                    let x = if (runner.Capabilities project |> List.contains CanDebugSingle) then x + "Debug" else x
+                    Some x
 
 
             let c = createEmpty<Command>
@@ -376,17 +386,37 @@ let private createCodeLensesProvider () =
             flattedTests ()
             |> Seq.where (fun t -> t.FileName = doc.fileName)
             |> Seq.collect (fun t ->
+                let runner = register.[t.Type]
+                match getProjectForFile t.FileName with
+                | None -> []
+                | Some project ->
                 let range = Range.ToCodeRange t.Range
-                let commandRun = createEmpty<Command>
-                commandRun.title <- if t.Childs.Length > 0 then "Run Tests" else "Run Test"
-                commandRun.command <- if t.Childs.Length > 0 then "neptune.runList" else "neptune.runTest"
-                commandRun.arguments <- Some <| ResizeArray [| box t |]
-                let commandDebug = createEmpty<Command>
-                commandDebug.title <- if t.Childs.Length > 0 then "Debug Tests" else "Debug Test"
-                commandDebug.command <- if t.Childs.Length > 0 then "neptune.debugList" else "neptune.debugTest"
-                commandDebug.arguments <- Some <| ResizeArray [| box t |]
-                [ CodeLens(range, commandRun); CodeLens(range, commandDebug) ]
-
+                [
+                    if t.List && (runner.Capabilities project |> List.contains CanRunList) then
+                        let command = createEmpty<Command>
+                        command.title <- "Run Tests"
+                        command.command <- "neptune.runList"
+                        command.arguments <- Some <| ResizeArray [| box t |]
+                        yield CodeLens(range, command)
+                    if (not t.List) && (runner.Capabilities project |> List.contains CanRunSingle) then
+                        let command = createEmpty<Command>
+                        command.title <- "Run Test"
+                        command.command <- "neptune.runTest"
+                        command.arguments <- Some <| ResizeArray [| box t |]
+                        yield CodeLens(range, command)
+                    if t.List && (runner.Capabilities project |> List.contains CanDebugList) then
+                        let command = createEmpty<Command>
+                        command.title <- "Debug Tests"
+                        command.command <- "neptune.debugList"
+                        command.arguments <- Some <| ResizeArray [| box t |]
+                        yield CodeLens(range, command)
+                    if (not t.List) && (runner.Capabilities project |> List.contains CanDebugSingle) then
+                        let command = createEmpty<Command>
+                        command.title <- "Debug Test"
+                        command.command <- "neptune.debugTest"
+                        command.arguments <- Some <| ResizeArray [| box t |]
+                        yield CodeLens(range, command)
+                ]
             )
             |> ResizeArray
             |> U2.Case1

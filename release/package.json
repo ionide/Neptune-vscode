@@ -1,125 +1,143 @@
 {
-    "name": "neptune",
-    "displayName": "Neptune",
-    "publisher": "Ionide",
-    "version": "0.0.1",
-    "engines": {
-      "vscode": "^0.10.10"
+  "name": "neptune",
+  "displayName": "Neptune",
+  "publisher": "Ionide",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^0.10.10"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "*"
+  ],
+  "main": "./neptune",
+  "contributes": {
+    "commands": [
+      {
+        "command": "neptune.runList",
+        "category": "Tests",
+        "title": "Run Tests"
+      },
+      {
+        "command": "neptune.runTest",
+        "category": "Tests",
+        "title": "Run Test"
+      },
+      {
+        "command": "neptune.debugList",
+        "category": "Tests",
+        "title": "Debug Tests"
+      },
+      {
+        "command": "neptune.debugTest",
+        "category": "Tests",
+        "title": "Debug Test"
+      },
+      {
+        "command": "neptune.debugAll",
+        "category": "Tests",
+        "title": "Debug All"
+      },
+      {
+        "command": "neptune.debugFailed",
+        "category": "Tests",
+        "title": "Debug Failed"
+      },
+      {
+        "command": "neptune.runAll",
+        "category": "Tests",
+        "title": "Run All",
+        "icon": "./images/run.png"
+      },
+      {
+        "command": "neptune.runFailed",
+        "category": "Tests",
+        "title": "Run Failed",
+        "icon": "./images/runRed.png"
+      },
+      {
+        "command": "neptune.changeDisplayMode",
+        "title": "Change sorting",
+        "category": "Tests",
+        "icon": {
+          "light": "./images/expand-all-light.svg",
+          "dark": "./images/expand-all-dark.svg"
+        }
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "neptune.testExplorer",
+          "name": "Test Explorer",
+          "when": "fsharp.project.any"
+        }
+      ]
     },
-    "categories": [
-      "Other"
-    ],
-    "activationEvents": [
-      "*"
-    ],
-    "main": "./neptune",
-    "contributes": {
-      "commands": [
-        {
-          "command": "neptune.runList",
-          "category": "Tests",
-          "title": "Run Tests"
-        },
-        {
-          "command": "neptune.runTest",
-          "category": "Tests",
-          "title": "Run Test"
-        },
-        {
-          "command": "neptune.debugList",
-          "category": "Tests",
-          "title": "Debug Tests"
-        },
-        {
-          "command": "neptune.debugTest",
-          "category": "Tests",
-          "title": "Debug Test"
-        },
-        {
-          "command": "neptune.debugAll",
-          "category": "Tests",
-          "title": "Debug All"
-        },
-        {
-          "command": "neptune.debugFailed",
-          "category": "Tests",
-          "title": "Debug Failed"
-        },
+    "menus": {
+      "view/title": [
         {
           "command": "neptune.runAll",
-          "category": "Tests",
-          "title": "Run All",
-          "icon": "./images/run.png"
+          "group": "navigation@1",
+          "when": "view == neptune.testExplorer",
+          "alt": "neptune.debugAll"
         },
         {
           "command": "neptune.runFailed",
-          "category": "Tests",
-          "title": "Run Failed",
-          "icon": "./images/runRed.png"
+          "group": "navigation@2",
+          "when": "view == neptune.testExplorer",
+          "alt": "neptune.debugFailed"
         },
         {
           "command": "neptune.changeDisplayMode",
-          "title": "Change sorting",
-          "category": "Tests",
-          "icon": {
-            "light": "./images/expand-all-light.svg",
-            "dark": "./images/expand-all-dark.svg"
-          }
+          "group": "navigation@3",
+          "when": "view == neptune.testExplorer"
         }
       ],
-      "views": {
-        "explorer": [
-          {
-            "id": "neptune.testExplorer",
-            "name": "Test Explorer",
-            "when": "fsharp.project.any"
-          }
-        ]
-      },
-      "menus": {
-        "view/title": [
-          {
-            "command": "neptune.runAll",
-            "group": "navigation@1",
-            "when": "view == neptune.testExplorer",
-            "alt": "neptune.debugAll"
-          },
-          {
-            "command": "neptune.runFailed",
-            "group": "navigation@2",
-            "when": "view == neptune.testExplorer",
-            "alt": "neptune.debugFailed"
-          },
-          {
-            "command": "neptune.changeDisplayMode",
-            "group": "navigation@3",
-            "when": "view == neptune.testExplorer"
-          }
-        ],
-        "view/item/context": [
-          {
-            "command": "neptune.runList",
-            "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.group",
-            "group": "actions@1"
-
-          },
-          {
-            "command": "neptune.runTest",
-            "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.test",
-            "group": "actions@1"
-          },
-          {
-            "command": "neptune.debugList",
-            "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.group",
-            "group": "actions@2"
-
-          },
-          {
-            "command": "neptune.debugTest",
-            "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.test",
-            "group": "actions@2"
-          }
-        ]
-      }
+      "view/item/context": [
+        {
+          "command": "neptune.runList",
+          "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.groupRun",
+          "group": "actions@1"
+        },
+        {
+          "command": "neptune.runList",
+          "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.groupRunDebug",
+          "group": "actions@1"
+        },
+        {
+          "command": "neptune.runTest",
+          "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.testRun",
+          "group": "actions@1"
+        },
+        {
+          "command": "neptune.runTest",
+          "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.testRunDebug",
+          "group": "actions@1"
+        },
+        {
+          "command": "neptune.debugList",
+          "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.groupDebug",
+          "group": "actions@2"
+        },
+        {
+          "command": "neptune.debugList",
+          "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.groupRunDebug",
+          "group": "actions@2"
+        },
+        {
+          "command": "neptune.debugTest",
+          "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.testDebug",
+          "group": "actions@2"
+        },
+        {
+          "command": "neptune.debugTest",
+          "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.testRunDebug",
+          "group": "actions@2"
+        }
+      ]
     }
   }
+}
