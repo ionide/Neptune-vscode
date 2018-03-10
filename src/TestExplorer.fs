@@ -125,7 +125,7 @@ let private flattedTests () =
 
 let private getTests state =
     flattedTests ()
-    |> List.filter (fun n -> n.State = state)
+    |> List.filter (fun n -> n.State = state && not n.List)
 
 let private failedDecorationType =
     let opt = createEmpty<DecorationRenderOptions>
