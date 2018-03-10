@@ -7,6 +7,7 @@ open Fable.Core.JsInterop
 open Fable
 open Fable.Core
 open Fable.Import.vscode
+open System
 
 type [<Pojo>] RequestLaunch =
     { name: string
@@ -131,6 +132,9 @@ let runAllTests (projs: Project[]) initial =
         return Array.append initial res
     }
 
+let runAllTestsWithOldRunner (proj: Project) initial =
+    Promise.lift [||]
+
 let runSomeTests (projs: Project[]) (tests: obj[]) initial =
     if tests.Length > 0 then
         let xml = getXml projs
@@ -163,6 +167,9 @@ let runSomeTests (projs: Project[]) (tests: obj[]) initial =
         }
     else
         Promise.lift [||]
+
+let runSomeTestsWithOldRunner (proj: Project) (tests: string[]) initial =
+    Promise.lift [||]
 
 let debugAllTests (projs: Project[]) initial =
 
@@ -309,18 +316,31 @@ let createRunner (api : Api) =
             projs
             |> buildProjs api
             |> Promise.bind (fun _ ->
-                let outs =
+                let newProjs, oldProjs =
                     projs
                     |> Seq.toArray
-                    |> Array.filter (fun p -> match p.Info with | ProjectResponseInfo.DotnetSdk _ -> true | _ -> false)
-                    |> Array.groupBy (fun p -> match p.Info with | ProjectResponseInfo.DotnetSdk z -> z.TargetFramework | _ -> "" )
-                    |> Array.toList
+                    |> Array.partition (fun p -> match p.Info with | ProjectResponseInfo.DotnetSdk _ -> true | _ -> false)
+                let newResult =
+                    match newProjs with
+                    | [||] -> Promise.lift [||]
+                    | newProjs ->
+                        let outs =
+                            newProjs
+                            |> Array.groupBy (fun p -> match p.Info with | ProjectResponseInfo.DotnetSdk z -> z.TargetFramework | _ -> "" )
+                            |> Array.toList
+                        let results =
+                            match outs with
+                            | [] -> Promise.empty
+                            | [ (_, projs) ] -> runAllTests projs [||]
+                            | (_, projs)::xs ->
+                                xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> runAllTests e acc)) (runAllTests projs [||])
+
+                        results
                 let results =
-                    match outs with
-                    | [] -> Promise.empty
-                    | [ (_, projs) ] -> runAllTests projs [||]
-                    | (_, projs)::xs ->
-                        xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> runAllTests e acc)) (runAllTests projs [||])
+                    match oldProjs with
+                    | [||] -> newResult
+                    | oldProjs ->
+                        oldProjs |> Array.fold (fun acc e -> acc |> Promise.bind (fun acc -> runAllTestsWithOldRunner e acc)) newResult
 
                 results
                 |> Promise.map (Array.toList)
@@ -334,46 +354,60 @@ let createRunner (api : Api) =
             proj
             |> buildProjs api
             |> Promise.bind (fun _ ->
-                let outs =
+                let newProjs, oldProjs =
                     proj
                     |> Seq.toArray
-                    |> Array.filter (fun p -> match p.Info with | ProjectResponseInfo.DotnetSdk _ -> true | _ -> false)
-                    |> Array.groupBy (fun p -> match p.Info with | ProjectResponseInfo.DotnetSdk z -> z.TargetFramework | _ -> "" )
-                    |> Array.toList
+                    |> Array.partition (fun p -> match p.Info with | ProjectResponseInfo.DotnetSdk _ -> true | _ -> false)
 
-                let vstest =
-                    match outs with
-                    | [] -> Promise.empty
-                    | [ (_, projs) ] -> discoverTests projs [||]
-                    | (_, projs)::xs ->
-                        xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> discoverTests e acc)) (discoverTests projs [||])
-                vstest
-                |> Promise.bind (fun n ->
-                    let results =
-                        let getTests (ps : Project []) =
-                            let names =
-                                testsByProj
-                                |> List.collect (fun (p, ts) -> if ps |> Array.contains p then ts else [])
-                                |> List.map (fun t -> t.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.').Replace("this.", "") )
+                let newResult =
+                    match newProjs with
+                    | [||] -> Promise.lift [||]
+                    | newProjs ->
+                        let outs =
+                            newProjs
+                            |> Array.groupBy (fun p -> match p.Info with | ProjectResponseInfo.DotnetSdk z -> z.TargetFramework | _ -> "" )
+                            |> Array.toList
 
-                            n
-                            |> Array.filter (fun (n, _) ->
-                                let n = n.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.')
-                                names |> List.contains n
-                            )
-                            |> Array.map snd
+                        let vstest =
+                            match outs with
+                            | [] -> Promise.empty
+                            | [ (_, projs) ] -> discoverTests projs [||]
+                            | (_, projs)::xs ->
+                                xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> discoverTests e acc)) (discoverTests projs [||])
+                        vstest
+                        |> Promise.bind (fun n ->
+                            let results =
+                                let getTests (ps : Project []) =
+                                    let names =
+                                        testsByProj
+                                        |> List.collect (fun (p, ts) -> if ps |> Array.contains p then ts else [])
+                                        |> List.map (fun t -> t.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.').Replace("this.", "") )
 
-                        match outs with
-                        | [] -> Promise.empty
-                        | [ (_, projs) ] ->
-                            let tests = getTests projs
-                            runSomeTests projs tests [||]
-                        | (_, projs)::xs ->
-                            xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> runSomeTests e (getTests e) acc)) (runSomeTests projs (getTests projs) [||])
+                                    n
+                                    |> Array.filter (fun (n, _) ->
+                                        let n = n.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.')
+                                        names |> List.contains n
+                                    )
+                                    |> Array.map snd
 
-                    results
-                    |> Promise.map (Array.toList)
-                )
+                                match outs with
+                                | [] -> Promise.empty
+                                | [ (_, projs) ] ->
+                                    let tests = getTests projs
+                                    runSomeTests projs tests [||]
+                                | (_, projs)::xs ->
+                                    xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> runSomeTests e (getTests e) acc)) (runSomeTests projs (getTests projs) [||])
+
+                            results)
+
+                let results =
+                    match oldProjs with
+                    | [||] -> newResult
+                    | oldProjs ->
+                        oldProjs |> Array.fold (fun acc e -> acc |> Promise.bind (fun acc -> runAllTestsWithOldRunner e acc)) newResult
+
+                results
+                |> Promise.map (Array.toList)
             )
 
         member __.RunList projAndList =
@@ -382,41 +416,55 @@ let createRunner (api : Api) =
             [proj]
             |> buildProjs api
             |> Promise.bind (fun _ ->
-                let outs =
+                let newProjs, oldProjs =
                     [proj]
                     |> Seq.toArray
-                    |> Array.filter (fun p -> match p.Info with | ProjectResponseInfo.DotnetSdk _ -> true | _ -> false)
-                    |> Array.groupBy (fun p -> match p.Info with | ProjectResponseInfo.DotnetSdk z -> z.TargetFramework | _ -> "" )
-                    |> Array.toList
+                    |> Array.partition (fun p -> match p.Info with | ProjectResponseInfo.DotnetSdk _ -> true | _ -> false)
 
-                let vstest =
-                    match outs with
-                    | [] -> Promise.empty
-                    | [ (_, projs) ] -> discoverTests projs [||]
-                    | (_, projs)::xs ->
-                        xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> discoverTests e acc)) (discoverTests projs [||])
-                vstest
-                |> Promise.bind (fun n ->
-                    let results =
-                        let tests =
-                            n
-                            |> Array.filter (fun (n, _) ->
-                                let n = n.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.')
-                                let l = list.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.') + "."
-                                n.StartsWith l
-                            )
-                            |> Array.map snd
+                let newResult =
+                    match newProjs with
+                    | [||] -> Promise.lift [||]
+                    | newProjs ->
+                        let outs =
+                            newProjs
+                            |> Array.groupBy (fun p -> match p.Info with | ProjectResponseInfo.DotnetSdk z -> z.TargetFramework | _ -> "" )
+                            |> Array.toList
 
-                        match outs with
-                        | [] -> Promise.empty
-                        | [ (_, projs) ] ->
-                            runSomeTests projs tests [||]
-                        | (_, projs)::xs ->
-                            xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> runSomeTests e (tests) acc)) (runSomeTests projs (tests) [||])
+                        let vstest =
+                            match outs with
+                            | [] -> Promise.empty
+                            | [ (_, projs) ] -> discoverTests projs [||]
+                            | (_, projs)::xs ->
+                                xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> discoverTests e acc)) (discoverTests projs [||])
+                        vstest
+                        |> Promise.bind (fun n ->
+                            let results =
+                                let tests =
+                                    n
+                                    |> Array.filter (fun (n, _) ->
+                                        let n = n.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.')
+                                        let l = list.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.') + "."
+                                        n.StartsWith l
+                                    )
+                                    |> Array.map snd
 
-                    results
-                    |> Promise.map (Array.toList)
-                )
+                                match outs with
+                                | [] -> Promise.empty
+                                | [ (_, projs) ] ->
+                                    runSomeTests projs tests [||]
+                                | (_, projs)::xs ->
+                                    xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> runSomeTests e (tests) acc)) (runSomeTests projs (tests) [||])
+
+                            results)
+
+                let results =
+                    match oldProjs with
+                    | [||] -> newResult
+                    | oldProjs ->
+                        oldProjs |> Array.fold (fun acc e -> acc |> Promise.bind (fun acc -> runAllTestsWithOldRunner e acc)) newResult
+
+                results
+                |> Promise.map (Array.toList)
             )
 
         member __.DebugList projAndList =
