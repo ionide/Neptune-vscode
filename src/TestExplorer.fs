@@ -12,33 +12,6 @@ open System.Collections.Generic
 open Utils
 open Model
 
-type TestResult = {
-    FullName: string
-    State: TestState
-    Timer: string
-    ErrorMessage: string
-    Runner: string
-}
-
-type Capability =
-    | CanDebugSingle
-    | CanDebugList
-    | CanDebugAll
-    | CanRunSingle
-    | CanRunList
-    | CanRunAll
-
-type ITestRunner =
-    abstract member GetTypeName : unit -> string
-    abstract member ShouldProjectBeRun: Project -> bool
-    abstract member RunAll: Project list -> JS.Promise<TestResult list>
-    abstract member RunTests: (Project * string list) list -> JS.Promise<TestResult list>
-    abstract member RunList: (Project * string) -> JS.Promise<TestResult list>
-    abstract member DebugAll: Project list -> JS.Promise<TestResult list>
-    abstract member DebugTests: (Project * string list) list -> JS.Promise<TestResult list>
-    abstract member DebugList: (Project * string) -> JS.Promise<TestResult list>
-    abstract member Capabilities : Project -> Capability list
-
 type private TreeModel = {
     Name: string
     FullName: string
@@ -67,14 +40,28 @@ let private emptyModel = {
     Type = ""
 }
 
-let private state = Dictionary<ProjectFilePath, Project>()
+let private runnerRegister = Dictionary<string, ITestRunner>()
+let private detectorRegister = Dictionary<string, ITestDetector>()
+let private refresh = EventEmitter<TreeModel option> ()
+let private diagnostcs = languages.createDiagnosticCollection()
 
-let private getProjectList () = state.Values |> Seq.toList
-let private getProjectForFile fn = state.Values |> Seq.tryFind (fun pr -> pr.Files |> List.contains fn )
+let private getProjectList () =
+    detectorRegister.Values
+    |> Seq.collect (fun dt ->
+        dt.GetProjectList () )
+    |> Seq.toList
 
-let private register = Dictionary<string, ITestRunner>()
+let private getProjectForFile (fn : SourceFilePath) =
+    detectorRegister.Values
+    |> Seq.tryPick (fun dt ->
+        if dt.ShouldHandleFilePath fn then
+            dt.GetProjectForFile fn
+        else None
 
-let registerTestRunner id (runner: ITestRunner) = register.[id] <- runner
+    )
+
+let registerTestRunner id (runner: ITestRunner) = runnerRegister.[id] <- runner
+let registerTestDetector id (runner: ITestDetector) = detectorRegister.[id] <- runner
 
 let rec private ofTestEntry fileName state prefix (oldTests: TreeModel list)  (input: TestEntry) =
     let fullname = prefix + "/" + input.Name
@@ -236,33 +223,29 @@ let private setDecorations () =
 
     ()
 
-let private refresh = EventEmitter<TreeModel option> ()
-
-let private diagnostcs = languages.createDiagnosticCollection()
-
 let private handle (input : ParseResponse) =
     if input.Tests.Length > 0 then
         let oldTests = flattedTests ()
         tests.[input.FileName] <- input.Tests |> Array.map (ofTestEntry input.FileName TestState.NotRun "" oldTests)
         refresh.fire undefined
 
-let private parseTextDocument document =
-    match document with
-    | Document.FSharp ->
-        let txt = document.getText()
-        let request = {ParseRequest.Content = txt; FileName = document.fileName }
-        LanguageService.parseRequest request
+let parseTextDocument (document : TextDocument) =
+    detectorRegister.Values
+    |> Seq.tryFind (fun dt -> dt.ShouldHandleFile document)
+    |> Option.iter (fun dt ->
+        dt.GetTestsForFile document
         |> Promise.onSuccess (handle)
-        |> unbox
-    | _ -> undefined
-
-let private parseProject projectName files =
-    let request = {ProjectRequest.FileName = projectName; Files = List.toArray files }
-    LanguageService.projectRequest request
-    |> Promise.onSuccess (fun n ->
-        n.Data |> Seq.iter handle
+        |> ignore
     )
-    |> unbox
+
+let parseProject (project : Project) =
+    detectorRegister.Values
+    |> Seq.tryFind (fun dt -> dt.ShouldHandleProject project)
+    |> Option.iter (fun dt ->
+        dt.GetTestsForProject project
+        |> Promise.onSuccess (Seq.iter handle)
+        |> ignore
+    )
 
 let private handleTestResults (results: TestResult list) =
     let tsts = flattedTests ()
@@ -355,7 +338,7 @@ let private createTreeProvider () : TreeDataProvider<TreeModel> =
                     | TestState.Failed -> Some <| getIconPath "testFailed.png" "testFailed.png"
 
             ti.contextValue <-
-                let runner = register.[node.Type]
+                let runner = runnerRegister.[node.Type]
                 match getProjectForFile node.FileName with
                 | None -> None
                 | Some project ->
@@ -386,7 +369,7 @@ let private createCodeLensesProvider () =
             flattedTests ()
             |> Seq.where (fun t -> t.FileName = doc.fileName)
             |> Seq.collect (fun t ->
-                let runner = register.[t.Type]
+                let runner = runnerRegister.[t.Type]
                 match getProjectForFile t.FileName with
                 | None -> []
                 | Some project ->
@@ -429,13 +412,8 @@ let private createCodeLensesProvider () =
 
     }
 
-
-
-let activate selector (context: ExtensionContext) (api : Api) =
-    workspace.onDidChangeTextDocument.Invoke(fun te -> parseTextDocument te.document) |> context.subscriptions.Add
-    api.ProjectLoadedEvent.Invoke(fun pr ->
-        state.[pr.Project] <- pr
-        parseProject pr.Project pr.Files) |> context.subscriptions.Add
+let activate selector (context: ExtensionContext) =
+    workspace.onDidChangeTextDocument.Invoke(fun te -> parseTextDocument te.document |> unbox) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.testExplorer.goTo", Func<obj, obj>(fun n ->
         let entry = unbox<TreeModel> n
@@ -471,7 +449,7 @@ let activate selector (context: ExtensionContext) (api : Api) =
             match getProjectForFile m.FileName with
             | None -> undefined
             | Some prj ->
-                register.Values
+                runnerRegister.Values
                 |> Seq.choose (fun r ->
                     if r.ShouldProjectBeRun prj then
                         Some (r.RunList (prj, m.FullName.Trim( '"', ' ', '\\', '/')))
@@ -510,7 +488,7 @@ let activate selector (context: ExtensionContext) (api : Api) =
             match getProjectForFile m.FileName with
             | None -> undefined
             | Some prj ->
-                register.Values
+                runnerRegister.Values
                 |> Seq.choose (fun r ->
                     if r.ShouldProjectBeRun prj then
                         Some (r.DebugList (prj, m.FullName.Trim( '"', ' ', '\\', '/')))
@@ -549,7 +527,7 @@ let activate selector (context: ExtensionContext) (api : Api) =
             | None -> undefined
             | Some prj ->
                 let projectsWithTests = [prj, [m.FullName.Trim( '"', ' ', '\\', '/') ] ]
-                register.Values
+                runnerRegister.Values
                 |> Seq.map (fun r ->
                     let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
                     r.RunTests prjsWithTsts
@@ -586,7 +564,7 @@ let activate selector (context: ExtensionContext) (api : Api) =
             | None -> undefined
             | Some prj ->
                 let projectsWithTests = [prj, [m.FullName.Trim( '"', ' ', '\\', '/') ] ]
-                register.Values
+                runnerRegister.Values
                 |> Seq.map (fun r ->
                     let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
                     r.DebugTests prjsWithTsts
@@ -604,7 +582,7 @@ let activate selector (context: ExtensionContext) (api : Api) =
 
     commands.registerCommand("neptune.runAll", Func<obj, obj>(fun _ ->
         let projects = getProjectList ()
-        register.Values
+        runnerRegister.Values
         |> Seq.map (fun r ->
             let prjs = projects |> List.filter r.ShouldProjectBeRun
             r.RunAll prjs )
@@ -619,7 +597,7 @@ let activate selector (context: ExtensionContext) (api : Api) =
 
     commands.registerCommand("neptune.debugAll", Func<obj, obj>(fun _ ->
         let projects = getProjectList ()
-        register.Values
+        runnerRegister.Values
         |> Seq.map (fun r ->
             let prjs = projects |> List.filter r.ShouldProjectBeRun
             r.DebugAll prjs )
@@ -639,7 +617,7 @@ let activate selector (context: ExtensionContext) (api : Api) =
             |> List.groupBy fst
             |> List.map (fun (p, lst) -> p, (lst |> List.map (fun (_, test) -> test.FullName.Trim( '"', ' ', '\\', '/') )) )
 
-        register.Values
+        runnerRegister.Values
         |> Seq.map (fun r ->
             let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
             r.RunTests prjsWithTsts
@@ -660,7 +638,7 @@ let activate selector (context: ExtensionContext) (api : Api) =
             |> List.groupBy fst
             |> List.map (fun (p, lst) -> p, (lst |> List.map (fun (_, test) -> test.FullName.Trim( '"', ' ', '\\', '/') )) )
 
-        register.Values
+        runnerRegister.Values
         |> Seq.map (fun r ->
             let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
             r.DebugTests prjsWithTsts
@@ -692,5 +670,3 @@ let activate selector (context: ExtensionContext) (api : Api) =
     window.onDidChangeVisibleTextEditors.Invoke(unbox setDecorations)
     |> context.subscriptions.Add
 
-    VSTestAdapterService.start()
-    |> ignore

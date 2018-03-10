@@ -13,12 +13,11 @@ let activate (context : vscode.ExtensionContext) =
     df.language <- Some "fsharp"
     let df' : DocumentSelector = df |> U3.Case2
 
-    let ext = vscode.extensions.getExtension<Model.Api> "Ionide.Ionide-fsharp"
+    TestExplorer.activate df' context
 
-    LanguageService.start ()
-    |> Promise.onSuccess (fun _ ->
-        TestExplorer.activate df' context ext.exports
-        ExpectoRunner.activate ext.exports
-        VSTestRunner.activate ext.exports
-        )
+    FSharpTestDetector.activate context
+    |> Promise.onSuccess (fun api ->
+        ExpectoRunner.activate api
+        VSTestRunner.activate api
+    )
     |> ignore

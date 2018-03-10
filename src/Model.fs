@@ -1,11 +1,32 @@
 module Model
 
+open Fable.Import
+open Fable.Import.vscode
+
 [<RequireQualifiedAccess>]
 type TestState =
     | Passed
     | Ignored
     | Failed
     | NotRun
+
+type TestResult = {
+    FullName: string
+    State: TestState
+    Timer: string
+    ErrorMessage: string
+    Runner: string
+}
+
+type Capability =
+    | CanDebugSingle
+    | CanDebugList
+    | CanDebugAll
+    | CanRunSingle
+    | CanRunList
+    | CanRunAll
+
+
 
 type CodeRange = Fable.Import.vscode.Range
 
@@ -62,6 +83,7 @@ type ProjectResponseInfo =
     | DotnetSdk of ProjectResponseInfoDotnetSdk
     | Verbose
     | ProjectJson
+    | None
 and ProjectResponseInfoDotnetSdk = {
     IsTestProject: bool
     Configuration: string
@@ -86,11 +108,24 @@ type Project = {
     AdditionalInfo: Map<string, string>
 }
 
-//API for communication with Ionide
+// API for test explorer abstraction
 
-type Api = {
-    ProjectLoadedEvent: Fable.Import.vscode.Event<Project>
-    BuildProject: Project -> Fable.Import.JS.Promise<string>
-    GetProjectLauncher: Fable.Import.vscode.OutputChannel -> Project -> (string -> Fable.Import.JS.Promise<Fable.Import.Node.ChildProcess.ChildProcess>) option
-    DebugProject: Project -> string [] -> Fable.Import.JS.Promise<unit>
-}
+type ITestRunner =
+    abstract member GetTypeName : unit -> string
+    abstract member ShouldProjectBeRun: Project -> bool
+    abstract member RunAll: Project list -> JS.Promise<TestResult list>
+    abstract member RunTests: (Project * string list) list -> JS.Promise<TestResult list>
+    abstract member RunList: (Project * string) -> JS.Promise<TestResult list>
+    abstract member DebugAll: Project list -> JS.Promise<TestResult list>
+    abstract member DebugTests: (Project * string list) list -> JS.Promise<TestResult list>
+    abstract member DebugList: (Project * string) -> JS.Promise<TestResult list>
+    abstract member Capabilities : Project -> Capability list
+
+type ITestDetector =
+    abstract member ShouldHandleFile : TextDocument -> bool
+    abstract member ShouldHandleFilePath : SourceFilePath -> bool
+    abstract member ShouldHandleProject : Project -> bool
+    abstract member GetProjectList : unit -> Project list
+    abstract member GetProjectForFile : SourceFilePath -> Project option
+    abstract member GetTestsForFile : TextDocument -> JS.Promise<ParseResponse>
+    abstract member GetTestsForProject : Project -> JS.Promise<ParseResponse []>

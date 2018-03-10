@@ -302,7 +302,7 @@ let debugSomeTests (projs: Project[]) tests initial =
     }
 
 let createRunner (api : Api) =
-    { new TestExplorer.ITestRunner with
+    { new ITestRunner with
         member __.GetTypeName() = "VSTest"
         member __.ShouldProjectBeRun proj = proj.References |> List.exists (fun r -> r.EndsWith "nunit.framework.dll" || r.EndsWith "xunit.assert.dll" )
         member __.RunAll projs =
@@ -543,4 +543,5 @@ let createRunner (api : Api) =
     }
 
 let activate api =
+    VSTestAdapterService.start() |> ignore
     registerTestRunner "VSTest" (createRunner api)

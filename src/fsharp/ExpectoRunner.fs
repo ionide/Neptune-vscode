@@ -188,7 +188,7 @@ let runProjs api projsWithArgs =
 
 
 let createRunner (api : Api) =
-    { new TestExplorer.ITestRunner with
+    { new ITestRunner with
         member __.GetTypeName() = "Expecto"
         member __.ShouldProjectBeRun proj = proj.References |> List.exists (fun r -> r.EndsWith "Expecto.dll" )
         member __.RunAll projs =

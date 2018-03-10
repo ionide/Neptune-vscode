@@ -20,12 +20,15 @@
     <Compile Include="Model.fs" />
     <Compile Include="Utils.fs" />
     <Compile Include="Logging.fs" />
-    <Compile Include="LanguageService.fs" />
-    <Compile Include="VSTestAdapterService.fs" />
-
     <Compile Include="TestExplorer.fs" />
-    <Compile Include="ExpectoRunner.fs" />
-    <Compile Include="VSTestRunner.fs" />
+
+    <Compile Include="fsharp/Common.fs" />
+    <Compile Include="fsharp/LanguageService.fs" />
+    <Compile Include="fsharp/FSharpTestDetector.fs" />
+    <Compile Include="fsharp/VSTestAdapterService.fs" />
+    <Compile Include="fsharp/ExpectoRunner.fs" />
+    <Compile Include="fsharp/VSTestRunner.fs" />
+
 
     <Compile Include="neptune.fs" />
   </ItemGroup>
