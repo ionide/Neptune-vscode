@@ -530,7 +530,9 @@ let activate selector (context: ExtensionContext) =
                 runnerRegister.Values
                 |> Seq.map (fun r ->
                     let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
-                    r.RunTests prjsWithTsts
+                    match prjsWithTsts with
+                    | [] -> Promise.lift []
+                    | xs ->  r.RunTests xs
                 )
                 |> Promise.all
                 |> Promise.onSuccess (fun n ->
@@ -567,7 +569,9 @@ let activate selector (context: ExtensionContext) =
                 runnerRegister.Values
                 |> Seq.map (fun r ->
                     let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
-                    r.DebugTests prjsWithTsts
+                    match prjsWithTsts with
+                    | [] -> Promise.lift []
+                    | xs ->  r.DebugTests xs
                 )
                 |> Promise.all
                 |> Promise.onSuccess (fun n ->
@@ -620,7 +624,9 @@ let activate selector (context: ExtensionContext) =
         runnerRegister.Values
         |> Seq.map (fun r ->
             let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
-            r.RunTests prjsWithTsts
+            match prjsWithTsts with
+            | [] -> Promise.lift []
+            | xs ->  r.RunTests xs
         )
         |> Promise.all
         |> Promise.onSuccess (fun n ->
@@ -641,7 +647,9 @@ let activate selector (context: ExtensionContext) =
         runnerRegister.Values
         |> Seq.map (fun r ->
             let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
-            r.DebugTests prjsWithTsts
+            match prjsWithTsts with
+            | [] -> Promise.lift []
+            | xs ->  r.DebugTests xs
         )
         |> Promise.all
         |> Promise.onSuccess (fun n ->
