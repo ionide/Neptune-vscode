@@ -8,6 +8,8 @@ open Fable
 open Fable.Core
 open Fable.Import.vscode
 open System
+open System.Collections.Generic
+open Fable.Import.Node
 
 type [<Pojo>] RequestLaunch =
     { name: string
@@ -35,6 +37,38 @@ let getXml (projs : Project[]) =
             </RunConfiguration>
         </RunSettings>""" z.TargetFrameworkIdentifier z.TargetFrameworkVersion
     | _ -> null
+
+let findOldRunner (pr : Project) =
+    let rec findFile file dir =
+        let files = Fs.readdirSync (U2.Case1 dir)
+        files
+        |> Seq.toList
+        |> List.collect(fun s' ->
+            try
+                let s = dir + Path.sep + s'
+                if Fs.statSync(U2.Case1 s).isDirectory () then
+                    findFile file (s)
+                else
+                   if s.EndsWith file then [ s ] else []
+            with
+            | _ -> []
+    )
+
+    pr.References
+    |> List.tryFind (fun r -> r.EndsWith "nunit.framework.dll" || r.EndsWith "xunit.assert.dll" )
+    |> Option.bind (fun r ->
+        let isNunit = r.EndsWith "nunit.framework.dll"
+        let dir = Path.dirname r
+        let pcksIndex =
+            let p1 = dir.IndexOf "Packages"
+            if p1 > 0 then p1 + 8
+            else dir.IndexOf "packages" + 8
+        let pcksPath = dir.Substring(0, pcksIndex)
+        let runner =
+            if isNunit then findFile "nunit3-console.exe" pcksPath
+            else findFile "xunit.console.exe" pcksPath
+        List.tryHead runner
+    )
 
 let findId (testCase : obj) : string * obj =
     let prop =
@@ -133,7 +167,10 @@ let runAllTests (projs: Project[]) initial =
     }
 
 let runAllTestsWithOldRunner (proj: Project) initial =
-    Promise.lift [||]
+    match findOldRunner proj with
+    | None -> Promise.lift [||]
+    | Some runner ->
+        Promise.lift [||]
 
 let runSomeTests (projs: Project[]) (tests: obj[]) initial =
     if tests.Length > 0 then
@@ -169,7 +206,10 @@ let runSomeTests (projs: Project[]) (tests: obj[]) initial =
         Promise.lift [||]
 
 let runSomeTestsWithOldRunner (proj: Project) (tests: string[]) initial =
-    Promise.lift [||]
+    match findOldRunner proj with
+    | None -> Promise.lift [||]
+    | Some runner ->
+        Promise.lift [||]
 
 let debugAllTests (projs: Project[]) initial =
 
