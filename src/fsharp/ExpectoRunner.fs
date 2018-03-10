@@ -250,7 +250,17 @@ let createRunner (api : Api) =
             |> Promise.map (fun _ -> [])
 
         member __.DebugAll projs =
-            Promise.lift []
+            projs
+            |> buildProjs api
+            |> Promise.bind (fun _ ->
+                projs
+                |> Seq.map (fun p ->
+                    api.DebugProject p [| "--summary-location" ; "--debug"; |]
+                )
+                |> Seq.toArray
+                |> Promise.all
+            )
+            |> Promise.map (fun _ -> [])
 
         member __.Capabilities proj =
             match proj.Info with
