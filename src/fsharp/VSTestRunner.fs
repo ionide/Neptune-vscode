@@ -7,9 +7,8 @@ open Fable.Core.JsInterop
 open Fable
 open Fable.Core
 open Fable.Import.vscode
-open System
-open System.Collections.Generic
 open Fable.Import.Node
+open Utils
 
 type [<Pojo>] RequestLaunch =
     { name: string
@@ -21,6 +20,10 @@ type [<Pojo>] RequestLaunch =
       cwd: string
       console: string
       stopAtEntry: bool }
+
+let mutable storagePath = ""
+
+let convert =  Globals.require.Invoke "xml-js" |> unbox<obj>
 
 let buildProjs api projs =
     projs
@@ -68,6 +71,7 @@ let findOldRunner (pr : Project) =
             if isNunit then findFile "nunit3-console.exe" pcksPath
             else findFile "xunit.console.exe" pcksPath
         List.tryHead runner
+        |> Option.map (fun n -> isNunit, n)
     )
 
 let findId (testCase : obj) : string * obj =
@@ -166,11 +170,6 @@ let runAllTests (projs: Project[]) initial =
         return Array.append initial res
     }
 
-let runAllTestsWithOldRunner (proj: Project) initial =
-    match findOldRunner proj with
-    | None -> Promise.lift [||]
-    | Some runner ->
-        Promise.lift [||]
 
 let runSomeTests (projs: Project[]) (tests: obj[]) initial =
     if tests.Length > 0 then
@@ -205,11 +204,103 @@ let runSomeTests (projs: Project[]) (tests: obj[]) initial =
     else
         Promise.lift [||]
 
-let runSomeTestsWithOldRunner (proj: Project) (tests: string[]) initial =
+let getNUnitResults () =
+    let fn = Path.join(workspace.rootPath, "TestResult.xml")
+    let buf = Fs.readFileSync(fn)
+    let xmlCnt = buf.toString()
+    let opts =
+        createObj [
+            "compact" ==> true
+            "alwaysArray" ==> true
+        ]
+    let rec collectTestCases o =
+        let current = if !!o?``test-case`` <> Utils.undefined then unbox<obj[]>(o?``test-case``) else [||]
+        let testSuites = if !!o?``test-suite`` <> Utils.undefined then unbox<obj[]>(o?``test-suite``) else [||]
+        Array.append current (testSuites |> Array.collect collectTestCases)
+
+    let res = convert?xml2js(xmlCnt, opts)
+    let res = unbox<obj[]>(res?``test-run``).[0]
+    collectTestCases res
+
+let nUnitOldResultToTestResult obj =
+    let name = !!obj?_attributes?fullname
+    let timer = !!obj?_attributes?duration
+    let result = !!obj?_attributes?result
+    let state =
+        match result with
+        | "Passed" -> TestState.Passed
+        | "Failed" | "Inconclusive" -> TestState.Failed
+        | "Skipped" -> TestState.Ignored
+        | _ -> TestState.NotRun
+    let error =
+        try
+            let error = (unbox<obj[]>obj?failure).[0]
+            let r = (unbox<obj[]>error?message).[0]
+            !!(unbox<obj[]> r?``_cdata``).[0]
+        with
+        | _ -> ""
+    {FullName = name; ErrorMessage = error; State = state; Timer = timer; Runner = "VSTest" }
+
+
+
+let runAllTestsWithOldRunner (proj: Project) initial =
     match findOldRunner proj with
-    | None -> Promise.lift [||]
-    | Some runner ->
-        Promise.lift [||]
+    | None -> Promise.lift initial
+    | Some (isNUnit, runner) ->
+        let args =
+            if isNUnit then "\"" + proj.Output + "\""
+            else
+                "\"" + proj.Output + "\""
+                + " -nunit"
+        Process.spawn runner "mono" args
+        |> Process.toPromise
+        |> Promise.map (fun _ ->
+            let res = getNUnitResults ()
+            let res = res |> Array.map nUnitOldResultToTestResult
+            Array.append initial res
+        )
+
+
+let runSomeTestsWithOldRunner (proj: Project) (tests: string[]) initial : Fable.Import.JS.Promise<TestResult[]> =
+    match findOldRunner proj with
+    | None -> Promise.lift initial
+    | Some (isNUnit, runner) ->
+        let args =
+            if isNUnit then
+                "\"" + proj.Output + "\""
+                + " --test=" + (tests |> Array.map (fun n -> n.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.').Replace("this.", "")) |> String.concat ",")
+            else
+                "\"" + proj.Output  + "\""
+                + " " + (tests |> Array.map (fun n -> "-method \"" + n.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.').Replace("this.", "") + "\"") |> String.concat " ")
+                + " -nunit"
+        Process.spawn runner "mono" args
+        |> Process.toPromise
+        |> Promise.map (fun _ ->
+            let res = getNUnitResults ()
+            let res = res |> Array.map nUnitOldResultToTestResult
+            Array.append initial res
+        )
+
+let runListTestsWithOldRunner (proj: Project) (list : string) initial =
+    match findOldRunner proj with
+    | None -> Promise.lift initial
+    | Some (isNUnit, runner) ->
+        let list = list.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.').Replace("this.", "")
+        let args =
+            if isNUnit then
+                "\"" + proj.Output + "\""
+                + " --where \"class == " + list + " || namespace == " + list + "\""
+            else
+                "\"" + proj.Output + "\""
+                + " -namespace \"" + list + "\"" + " -class \"" + list + "\""
+                + " -nunit"
+        Process.spawn runner "mono" args
+        |> Process.toPromise
+        |> Promise.map (fun _ ->
+            let res = getNUnitResults ()
+            let res = res |> Array.map nUnitOldResultToTestResult
+            Array.append initial res
+        )
 
 let debugAllTests (projs: Project[]) initial =
 
@@ -444,7 +535,10 @@ let createRunner (api : Api) =
                     match oldProjs with
                     | [||] -> newResult
                     | oldProjs ->
-                        oldProjs |> Array.fold (fun acc e -> acc |> Promise.bind (fun acc -> runAllTestsWithOldRunner e acc)) newResult
+                        oldProjs |> Array.fold (fun acc e ->
+                            let (_,tests) = testsByProj |> Seq.find (fun (p,_) -> p.Project = e.Project )
+                            let tests = tests |> List.toArray
+                            acc |> Promise.bind (fun acc -> runSomeTestsWithOldRunner e tests acc)) newResult
 
                 results
                 |> Promise.map (Array.toList)
@@ -501,7 +595,7 @@ let createRunner (api : Api) =
                     match oldProjs with
                     | [||] -> newResult
                     | oldProjs ->
-                        oldProjs |> Array.fold (fun acc e -> acc |> Promise.bind (fun acc -> runAllTestsWithOldRunner e acc)) newResult
+                        oldProjs |> Array.fold (fun acc e -> acc |> Promise.bind (fun acc -> runListTestsWithOldRunner e list acc)) newResult
 
                 results
                 |> Promise.map (Array.toList)
@@ -630,6 +724,10 @@ let createRunner (api : Api) =
                 [Capability.CanRunAll; Capability.CanRunList; Capability.CanRunSingle]
     }
 
-let activate api =
+let activate api sPath =
+    storagePath <- sPath
+    if not (Fs.existsSync(!!sPath)) then
+        Fs.mkdirSync(!!sPath)
+
     VSTestAdapterService.start() |> ignore
     registerTestRunner "VSTest" (createRunner api)

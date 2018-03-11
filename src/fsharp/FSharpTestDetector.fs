@@ -52,5 +52,5 @@ let activate (context: ExtensionContext)  =
             TestExplorer.parseProject pr
             |> unbox) |> context.subscriptions.Add
         TestExplorer.registerTestDetector "fsharp" detector
-        api
+        api, context.storagePath
     )

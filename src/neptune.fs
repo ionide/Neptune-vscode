@@ -6,8 +6,6 @@ open vscode
 open JsInterop
 open Ionide.VSCode.Helpers
 
-
-
 let activate (context : vscode.ExtensionContext) =
     let df = createEmpty<DocumentFilter>
     df.language <- Some "fsharp"
@@ -16,8 +14,8 @@ let activate (context : vscode.ExtensionContext) =
     TestExplorer.activate df' context
 
     FSharpTestDetector.activate context
-    |> Promise.onSuccess (fun api ->
+    |> Promise.onSuccess (fun (api, storagePath) ->
         ExpectoRunner.activate api
-        VSTestRunner.activate api
+        VSTestRunner.activate api storagePath.Value
     )
     |> ignore
