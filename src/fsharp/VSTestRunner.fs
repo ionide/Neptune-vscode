@@ -443,10 +443,13 @@ let createRunner (api : Api) =
     { new ITestRunner with
         member __.GetTypeName() = "VSTest"
         member __.ShouldProjectBeRun proj = proj.References |> List.exists (fun r -> r.EndsWith "nunit.framework.dll" || r.EndsWith "xunit.assert.dll" )
-        member __.RunAll projs =
+        member __.RunAll msgHandler projs =
+            msgHandler |> report buildingMsg
             projs
             |> buildProjs api
             |> Promise.bind (fun _ ->
+                msgHandler |> report runningMsg
+
                 let newProjs, oldProjs =
                     projs
                     |> Seq.toArray
@@ -477,14 +480,17 @@ let createRunner (api : Api) =
                 |> Promise.map (Array.toList)
             )
 
-        member __.RunTests testsByProj =
+        member __.RunTests msgHandler testsByProj =
             let proj =
                 testsByProj
                 |> List.map fst
+            msgHandler |> report buildingMsg
 
             proj
             |> buildProjs api
             |> Promise.bind (fun _ ->
+                msgHandler |> report runningMsg
+
                 let newProjs, oldProjs =
                     proj
                     |> Seq.toArray
@@ -544,12 +550,15 @@ let createRunner (api : Api) =
                 |> Promise.map (Array.toList)
             )
 
-        member __.RunList projAndList =
+        member __.RunList msgHandler projAndList =
             let (proj, list) = projAndList
+            msgHandler |> report buildingMsg
 
             [proj]
             |> buildProjs api
             |> Promise.bind (fun _ ->
+                msgHandler |> report runningMsg
+
                 let newProjs, oldProjs =
                     [proj]
                     |> Seq.toArray
@@ -601,12 +610,15 @@ let createRunner (api : Api) =
                 |> Promise.map (Array.toList)
             )
 
-        member __.DebugList projAndList =
+        member __.DebugList msgHandler projAndList =
             let (proj, list) = projAndList
+            msgHandler |> report buildingMsg
 
             [proj]
             |> buildProjs api
             |> Promise.bind (fun _ ->
+                msgHandler |> report runningMsg
+
                 let outs =
                     [proj]
                     |> Seq.toArray
@@ -644,10 +656,14 @@ let createRunner (api : Api) =
                 )
             )
 
-        member __.DebugAll projs =
+        member __.DebugAll msgHandler projs =
+            msgHandler |> report buildingMsg
+
             projs
             |> buildProjs api
             |> Promise.bind (fun _ ->
+                msgHandler |> report runningMsg
+
                 let outs =
                     projs
                     |> Seq.toArray
@@ -665,14 +681,18 @@ let createRunner (api : Api) =
                 |> Promise.map (Array.toList)
             )
 
-        member __.DebugTests testsByProj =
+        member __.DebugTests msgHandler testsByProj =
             let proj =
                 testsByProj
                 |> List.map fst
 
+            msgHandler |> report buildingMsg
+
             proj
             |> buildProjs api
             |> Promise.bind (fun _ ->
+                msgHandler |> report runningMsg
+
                 let outs =
                     proj
                     |> Seq.toArray

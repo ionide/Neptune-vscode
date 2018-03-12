@@ -412,6 +412,8 @@ let private createCodeLensesProvider () =
 
     }
 
+
+
 let activate selector (context: ExtensionContext) =
     workspace.onDidChangeTextDocument.Invoke(fun te -> parseTextDocument te.document |> unbox) |> context.subscriptions.Add
 
@@ -428,236 +430,314 @@ let activate selector (context: ExtensionContext) =
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.runList", Func<obj, obj>(fun m ->
-        let m =
-            if JS.isDefined m then
-                Promise.lift <| unbox<TreeModel> m
-            else
-                let tests =
-                    flattedTests ()
-                    |> Seq.filter (fun n -> n.List)
-                    |> Seq.map (fun n ->
-                        let qpi = createEmpty<QuickPickItem>
-                        qpi.label <- n.Name
-                        qpi?data <- n
-                        qpi
-                    )
-                    |> ResizeArray
+        withProgress (fun msgHandler ->
+            let m =
+                if JS.isDefined m then
+                    Promise.lift <| unbox<TreeModel> m
+                else
+                    let tests =
+                        flattedTests ()
+                        |> Seq.filter (fun n -> n.List)
+                        |> Seq.map (fun n ->
+                            let qpi = createEmpty<QuickPickItem>
+                            qpi.label <- n.Name
+                            qpi?data <- n
+                            qpi
+                        )
+                        |> ResizeArray
 
-                window.showQuickPick(U2.Case1 tests)
-                |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
-        m |> Promise.map (fun m ->
-            match getProjectForFile m.FileName with
-            | None -> undefined
-            | Some prj ->
-                runnerRegister.Values
-                |> Seq.choose (fun r ->
-                    if r.ShouldProjectBeRun prj then
-                        Some (r.RunList (prj, m.FullName.Trim( '"', ' ', '\\', '/')))
-                    else
-                        None
-                )
-                |> Promise.all
-                |> Promise.onSuccess (fun n ->
-                    n
-                    |> Seq.toList
-                    |> List.collect id
-                    |> handleTestResults
-                )
-        ) |> unbox
+                    window.showQuickPick(U2.Case1 tests)
+                    |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
+            m |> Promise.map (fun m ->
+                match getProjectForFile m.FileName with
+                | None -> undefined
+                | Some prj ->
+                    msgHandler |> report startingMsg
+                    runnerRegister.Values
+                    |> Seq.choose (fun r ->
+                        if r.ShouldProjectBeRun prj then
+                            Some (r.RunList msgHandler (prj, m.FullName.Trim( '"', ' ', '\\', '/')))
+                        else
+                            None
+                    )
+                    |> Promise.all
+                    |> Promise.onSuccess (fun n ->
+                        msgHandler |> report completedMsg
+                        n
+                        |> Seq.toList
+                        |> List.collect id
+                        |> handleTestResults
+                    )
+                    |> Promise.onFail (fun _ ->
+                        msgHandler |> report failedRunMsg
+
+                        //TODO: HANDLE ERROR
+                        ()
+                    )
+            )
+        )
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.debugList", Func<obj, obj>(fun m ->
-        let m =
-            if JS.isDefined m then
-                Promise.lift <| unbox<TreeModel> m
-            else
-                let tests =
-                    flattedTests ()
-                    |> Seq.filter (fun n -> n.List)
-                    |> Seq.map (fun n ->
-                        let qpi = createEmpty<QuickPickItem>
-                        qpi.label <- n.Name
-                        qpi?data <- n
-                        qpi
-                    )
-                    |> ResizeArray
+        withProgress (fun msgHandler ->
+            let m =
+                if JS.isDefined m then
+                    Promise.lift <| unbox<TreeModel> m
+                else
+                    let tests =
+                        flattedTests ()
+                        |> Seq.filter (fun n -> n.List)
+                        |> Seq.map (fun n ->
+                            let qpi = createEmpty<QuickPickItem>
+                            qpi.label <- n.Name
+                            qpi?data <- n
+                            qpi
+                        )
+                        |> ResizeArray
 
-                window.showQuickPick(U2.Case1 tests)
-                |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
-        m |> Promise.map (fun m ->
-            match getProjectForFile m.FileName with
-            | None -> undefined
-            | Some prj ->
-                runnerRegister.Values
-                |> Seq.choose (fun r ->
-                    if r.ShouldProjectBeRun prj then
-                        Some (r.DebugList (prj, m.FullName.Trim( '"', ' ', '\\', '/')))
-                    else
-                        None
-                )
-                |> Promise.all
-                |> Promise.onSuccess (fun n ->
-                    n
-                    |> Seq.toList
-                    |> List.collect id
-                    |> handleTestResults
-                )
-        ) |> unbox
+                    window.showQuickPick(U2.Case1 tests)
+                    |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
+            m |> Promise.map (fun m ->
+                match getProjectForFile m.FileName with
+                | None -> undefined
+                | Some prj ->
+                    runnerRegister.Values
+                    |> Seq.choose (fun r ->
+                        if r.ShouldProjectBeRun prj then
+                            Some (r.DebugList msgHandler (prj, m.FullName.Trim( '"', ' ', '\\', '/')))
+                        else
+                            None
+                    )
+                    |> Promise.all
+                    |> Promise.onSuccess (fun n ->
+                        n
+                        |> Seq.toList
+                        |> List.collect id
+                        |> handleTestResults
+                    )
+                    |> Promise.onFail (fun _ ->
+                        msgHandler |> report failedRunMsg
+
+                        //TODO: HANDLE ERROR
+                        ()
+                    )
+            )
+        )
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.runTest", Func<obj, obj>(fun m ->
-        let m =
-            if JS.isDefined m then
-                Promise.lift <| unbox<TreeModel> m
-            else
-                let tests =
-                    flattedTests ()
-                    |> Seq.filter (fun n -> not n.List)
-                    |> Seq.map (fun n ->
-                        let qpi = createEmpty<QuickPickItem>
-                        qpi.label <- n.Name
-                        qpi?data <- n
-                        qpi
+        withProgress (fun msgHandler ->
+            let m =
+                if JS.isDefined m then
+                    Promise.lift <| unbox<TreeModel> m
+                else
+                    let tests =
+                        flattedTests ()
+                        |> Seq.filter (fun n -> not n.List)
+                        |> Seq.map (fun n ->
+                            let qpi = createEmpty<QuickPickItem>
+                            qpi.label <- n.Name
+                            qpi?data <- n
+                            qpi
+                        )
+                        |> ResizeArray
+                    window.showQuickPick(U2.Case1 tests)
+                    |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
+            m |> Promise.map (fun m ->
+                match getProjectForFile m.FileName with
+                | None -> undefined
+                | Some prj ->
+                    msgHandler |> report startingMsg
+                    let projectsWithTests = [prj, [m.FullName.Trim( '"', ' ', '\\', '/') ] ]
+                    runnerRegister.Values
+                    |> Seq.map (fun r ->
+                        let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
+                        match prjsWithTsts with
+                        | [] -> Promise.lift []
+                        | xs ->  r.RunTests msgHandler xs
                     )
-                    |> ResizeArray
-                window.showQuickPick(U2.Case1 tests)
-                |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
-        m |> Promise.map (fun m ->
-            match getProjectForFile m.FileName with
-            | None -> undefined
-            | Some prj ->
-                let projectsWithTests = [prj, [m.FullName.Trim( '"', ' ', '\\', '/') ] ]
-                runnerRegister.Values
-                |> Seq.map (fun r ->
-                    let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
-                    match prjsWithTsts with
-                    | [] -> Promise.lift []
-                    | xs ->  r.RunTests xs
-                )
-                |> Promise.all
-                |> Promise.onSuccess (fun n ->
-                    n
-                    |> Seq.toList
-                    |> List.collect id
-                    |> handleTestResults
-                )
-        ) |> unbox
+                    |> Promise.all
+                    |> Promise.onSuccess (fun n ->
+                        msgHandler |> report completedMsg
+                        n
+                        |> Seq.toList
+                        |> List.collect id
+                        |> handleTestResults
+                    )
+                    |> Promise.onFail (fun _ ->
+                        msgHandler |> report failedRunMsg
+
+                        //TODO: HANDLE ERROR
+                        ()
+                    )
+            )
+        )
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.debugTest", Func<obj, obj>(fun m ->
-        let m =
-            if JS.isDefined m then
-                Promise.lift <| unbox<TreeModel> m
-            else
-                let tests =
-                    flattedTests ()
-                    |> Seq.filter (fun n -> not n.List)
-                    |> Seq.map (fun n ->
-                        let qpi = createEmpty<QuickPickItem>
-                        qpi.label <- n.Name
-                        qpi?data <- n
-                        qpi
+        withProgress (fun msgHandler ->
+            let m =
+                if JS.isDefined m then
+                    Promise.lift <| unbox<TreeModel> m
+                else
+                    let tests =
+                        flattedTests ()
+                        |> Seq.filter (fun n -> not n.List)
+                        |> Seq.map (fun n ->
+                            let qpi = createEmpty<QuickPickItem>
+                            qpi.label <- n.Name
+                            qpi?data <- n
+                            qpi
+                        )
+                        |> ResizeArray
+                    window.showQuickPick(U2.Case1 tests)
+                    |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
+            m |> Promise.map (fun m ->
+                msgHandler |> report startingMsg
+                match getProjectForFile m.FileName with
+                | None -> undefined
+                | Some prj ->
+                    let projectsWithTests = [prj, [m.FullName.Trim( '"', ' ', '\\', '/') ] ]
+                    runnerRegister.Values
+                    |> Seq.map (fun r ->
+                        let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
+                        match prjsWithTsts with
+                        | [] -> Promise.lift []
+                        | xs ->  r.DebugTests msgHandler xs
                     )
-                    |> ResizeArray
-                window.showQuickPick(U2.Case1 tests)
-                |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
-        m |> Promise.map (fun m ->
-            match getProjectForFile m.FileName with
-            | None -> undefined
-            | Some prj ->
-                let projectsWithTests = [prj, [m.FullName.Trim( '"', ' ', '\\', '/') ] ]
-                runnerRegister.Values
-                |> Seq.map (fun r ->
-                    let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
-                    match prjsWithTsts with
-                    | [] -> Promise.lift []
-                    | xs ->  r.DebugTests xs
-                )
-                |> Promise.all
-                |> Promise.onSuccess (fun n ->
-                    n
-                    |> Seq.toList
-                    |> List.collect id
-                    |> handleTestResults
-                )
-        ) |> unbox
+                    |> Promise.all
+                    |> Promise.onSuccess (fun n ->
+                        msgHandler |> report completedMsg
+                        n
+                        |> Seq.toList
+                        |> List.collect id
+                        |> handleTestResults
+                    )
+                    |> Promise.onFail (fun _ ->
+                        msgHandler |> report failedRunMsg
+
+                        //TODO: HANDLE ERROR
+                        ()
+                    )
+            )
+        )
     )) |> context.subscriptions.Add
 
 
     commands.registerCommand("neptune.runAll", Func<obj, obj>(fun _ ->
-        let projects = getProjectList ()
-        runnerRegister.Values
-        |> Seq.map (fun r ->
-            let prjs = projects |> List.filter r.ShouldProjectBeRun
-            r.RunAll prjs )
-        |> Promise.all
-        |> Promise.onSuccess (fun n ->
-            n
-            |> Seq.toList
-            |> List.collect id
-            |> handleTestResults
-        ) |> unbox
+        withProgress (fun msgHandler ->
+            let projects = getProjectList ()
+            msgHandler |> report startingMsg
+            runnerRegister.Values
+            |> Seq.map (fun r ->
+                let prjs = projects |> List.filter r.ShouldProjectBeRun
+                r.RunAll msgHandler prjs )
+            |> Promise.all
+            |> Promise.onSuccess (fun n ->
+                msgHandler |> report completedMsg
+                n
+                |> Seq.toList
+                |> List.collect id
+                |> handleTestResults
+            )
+            |> Promise.onFail (fun _ ->
+                msgHandler |> report failedRunMsg
+
+                //TODO: HANDLE ERROR
+                ()
+            )
+        )
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.debugAll", Func<obj, obj>(fun _ ->
-        let projects = getProjectList ()
-        runnerRegister.Values
-        |> Seq.map (fun r ->
-            let prjs = projects |> List.filter r.ShouldProjectBeRun
-            r.DebugAll prjs )
-        |> Promise.all
-        |> Promise.onSuccess (fun n ->
-            n
-            |> Seq.toList
-            |> List.collect id
-            |> handleTestResults
-        ) |> unbox
+        withProgress (fun msgHandler ->
+            let projects = getProjectList ()
+            msgHandler |> report startingMsg
+            runnerRegister.Values
+            |> Seq.map (fun r ->
+                let prjs = projects |> List.filter r.ShouldProjectBeRun
+                r.DebugAll msgHandler prjs )
+            |> Promise.all
+            |> Promise.onSuccess (fun n ->
+                msgHandler |> report completedMsg
+                n
+                |> Seq.toList
+                |> List.collect id
+                |> handleTestResults
+            )
+            |> Promise.onFail (fun _ ->
+                msgHandler |> report failedRunMsg
+
+                //TODO: HANDLE ERROR
+                ()
+            )
+        )
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.runFailed", Func<obj, obj>(fun _ ->
-        let projectsWithTests =
-            getTests TestState.Failed
-            |> List.choose (fun t -> getProjectForFile t.FileName |> Option.map (fun p -> p, t))
-            |> List.groupBy fst
-            |> List.map (fun (p, lst) -> p, (lst |> List.map (fun (_, test) -> test.FullName.Trim( '"', ' ', '\\', '/') )) )
+        withProgress (fun msgHandler ->
+            let projectsWithTests =
+                getTests TestState.Failed
+                |> List.choose (fun t -> getProjectForFile t.FileName |> Option.map (fun p -> p, t))
+                |> List.groupBy fst
+                |> List.map (fun (p, lst) -> p, (lst |> List.map (fun (_, test) -> test.FullName.Trim( '"', ' ', '\\', '/') )) )
 
-        runnerRegister.Values
-        |> Seq.map (fun r ->
-            let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
-            match prjsWithTsts with
-            | [] -> Promise.lift []
-            | xs ->  r.RunTests xs
+            msgHandler |> report startingMsg
+            runnerRegister.Values
+            |> Seq.map (fun r ->
+                let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
+                match prjsWithTsts with
+                | [] -> Promise.lift []
+                | xs ->  r.RunTests msgHandler xs
+            )
+            |> Promise.all
+            |> Promise.onSuccess (fun n ->
+                msgHandler |> report completedMsg
+                n
+                |> Seq.toList
+                |> List.collect id
+                |> handleTestResults
+            )
+            |> Promise.onFail (fun _ ->
+                msgHandler |> report failedRunMsg
+
+                //TODO: HANDLE ERROR
+                ()
+            )
         )
-        |> Promise.all
-        |> Promise.onSuccess (fun n ->
-            n
-            |> Seq.toList
-            |> List.collect id
-            |> handleTestResults
-        ) |> unbox
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.debugFailed", Func<obj, obj>(fun _ ->
-        let projectsWithTests =
-            getTests TestState.Failed
-            |> List.choose (fun t -> getProjectForFile t.FileName |> Option.map (fun p -> p, t))
-            |> List.groupBy fst
-            |> List.map (fun (p, lst) -> p, (lst |> List.map (fun (_, test) -> test.FullName.Trim( '"', ' ', '\\', '/') )) )
+        withProgress (fun msgHandler ->
+            let projectsWithTests =
+                getTests TestState.Failed
+                |> List.choose (fun t -> getProjectForFile t.FileName |> Option.map (fun p -> p, t))
+                |> List.groupBy fst
+                |> List.map (fun (p, lst) -> p, (lst |> List.map (fun (_, test) -> test.FullName.Trim( '"', ' ', '\\', '/') )) )
 
-        runnerRegister.Values
-        |> Seq.map (fun r ->
-            let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
-            match prjsWithTsts with
-            | [] -> Promise.lift []
-            | xs ->  r.DebugTests xs
+            msgHandler |> report startingMsg
+            runnerRegister.Values
+            |> Seq.map (fun r ->
+                let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
+                match prjsWithTsts with
+                | [] -> Promise.lift []
+                | xs ->  r.DebugTests msgHandler xs
+            )
+            |> Promise.all
+            |> Promise.onSuccess (fun n ->
+                msgHandler |> report completedMsg
+                n
+                |> Seq.toList
+                |> List.collect id
+                |> handleTestResults
+            )
+            |> Promise.onFail (fun _ ->
+                msgHandler |> report failedRunMsg
+
+                //TODO: HANDLE ERROR
+                ()
+            )
         )
-        |> Promise.all
-        |> Promise.onSuccess (fun n ->
-            n
-            |> Seq.toList
-            |> List.collect id
-            |> handleTestResults
-        ) |> unbox
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.changeDisplayMode", Func<obj, obj>(fun _ ->

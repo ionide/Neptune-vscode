@@ -2,8 +2,27 @@ module Utils
 open Fable.Import.vscode
 
 [<AutoOpen>]
+module StatusMsgs =
+    let startingMsg = "Starting tests"
+    let completedMsg = "Tests finished"
+    let failedRunMsg = "Running tests failed"
+    let buildingMsg = "Building tests"
+    let runningMsg = "Running tests"
+
+[<AutoOpen>]
 module Utils =
     let inline undefined<'a> = unbox<'a> ()
+
+    let withProgress (f : Progress<ProgressMessage> -> 'a) =
+        let progressOpts = Fable.Core.JsInterop.createEmpty<ProgressOptions>
+        progressOpts.location <- ProgressLocation.Window
+        window.withProgress(progressOpts, f >> unbox)
+        |> unbox
+
+    let report msg (handler: Progress<ProgressMessage>) =
+        let pm = Fable.Core.JsInterop.createEmpty<ProgressMessage>
+        pm.message <- msg
+        handler.report pm
 
 [<RequireQualifiedAccess>]
 module String =

@@ -113,13 +113,13 @@ type Project = {
 type ITestRunner =
     abstract member GetTypeName : unit -> string
     abstract member ShouldProjectBeRun: Project -> bool
-    abstract member RunAll: Project list -> JS.Promise<TestResult list>
-    abstract member RunTests: (Project * string list) list -> JS.Promise<TestResult list>
-    abstract member RunList: (Project * string) -> JS.Promise<TestResult list>
-    abstract member DebugAll: Project list -> JS.Promise<TestResult list>
-    abstract member DebugTests: (Project * string list) list -> JS.Promise<TestResult list>
-    abstract member DebugList: (Project * string) -> JS.Promise<TestResult list>
-    abstract member Capabilities : Project -> Capability list
+    abstract member RunAll: Progress<ProgressMessage> -> Project list -> JS.Promise<TestResult list>
+    abstract member RunTests: Progress<ProgressMessage> -> (Project * string list) list -> JS.Promise<TestResult list>
+    abstract member RunList: Progress<ProgressMessage> -> (Project * string) -> JS.Promise<TestResult list>
+    abstract member DebugAll: Progress<ProgressMessage> -> Project list -> JS.Promise<TestResult list>
+    abstract member DebugTests: Progress<ProgressMessage> -> (Project * string list) list -> JS.Promise<TestResult list>
+    abstract member DebugList: Progress<ProgressMessage> -> (Project * string) -> JS.Promise<TestResult list>
+    abstract member Capabilities: Project -> Capability list
 
 type ITestDetector =
     abstract member ShouldHandleFile : TextDocument -> bool

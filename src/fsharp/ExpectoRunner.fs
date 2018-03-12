@@ -191,18 +191,26 @@ let createRunner (api : Api) =
     { new ITestRunner with
         member __.GetTypeName() = "Expecto"
         member __.ShouldProjectBeRun proj = proj.References |> List.exists (fun r -> r.EndsWith "Expecto.dll" )
-        member __.RunAll projs =
+        member __.RunAll msgHandler projs =
+            msgHandler |> report buildingMsg
+
             projs
             |> buildProjs api
             |> Promise.bind (fun _ ->
+                msgHandler |> report runningMsg
+
                 projs |> Seq.map (fun p -> p, "--summary-location --debug")
                 |> runProjs api
             )
-        member __.RunTests testsByProj =
+        member __.RunTests msgHandler testsByProj =
+            msgHandler |> report buildingMsg
+
             testsByProj
             |> List.map fst
             |> buildProjs api
             |> Promise.bind (fun _ ->
+                msgHandler |> report runningMsg
+
                 testsByProj
                 |> Seq.map (fun (p, tests) ->
                     let tst =
@@ -214,28 +222,40 @@ let createRunner (api : Api) =
                 |> runProjs api
             )
 
-        member __.RunList projAndList =
+        member __.RunList msgHandler projAndList =
+            msgHandler |> report buildingMsg
+
             let (proj, list) = projAndList
             [proj]
             |> buildProjs api
             |> Promise.bind (fun _ ->
+                msgHandler |> report runningMsg
+
                 let projAndArgs = [proj, sprintf "--summary-location --debug --filter \"%s\"" list ]
                 projAndArgs |> List.toSeq |> runProjs api
             )
-        member __.DebugList projAndList =
+        member __.DebugList msgHandler projAndList =
+            msgHandler |> report buildingMsg
+
             let (proj, list) = projAndList
             [proj]
             |> buildProjs api
             |> Promise.bind (fun _ ->
+                msgHandler |> report runningMsg
+
                 let args = [| "--summary-location" ; "--debug"; "--filter"; list|]
                 api.DebugProject proj args)
             |> Promise.map (fun _ -> [])
 
-        member __.DebugTests testsByProj =
+        member __.DebugTests msgHandler testsByProj =
+            msgHandler |> report buildingMsg
+
             testsByProj
             |> List.map fst
             |> buildProjs api
             |> Promise.bind (fun _ ->
+                msgHandler |> report runningMsg
+
                 testsByProj
                 |> Seq.map (fun (p, tests) ->
                     let tst =
@@ -249,10 +269,14 @@ let createRunner (api : Api) =
             )
             |> Promise.map (fun _ -> [])
 
-        member __.DebugAll projs =
+        member __.DebugAll msgHandler projs =
+            msgHandler |> report buildingMsg
+
             projs
             |> buildProjs api
             |> Promise.bind (fun _ ->
+                msgHandler |> report runningMsg
+
                 projs
                 |> Seq.map (fun p ->
                     api.DebugProject p [| "--summary-location" ; "--debug"; |]
