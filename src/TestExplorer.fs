@@ -460,7 +460,7 @@ let activate selector (context: ExtensionContext) =
                         else
                             None
                     )
-                    |> Promise.all
+                    |> Promise.all //TODO: Change into promise fold
                     |> Promise.onSuccess (fun n ->
                         msgHandler |> report completedMsg
                         n
@@ -508,7 +508,7 @@ let activate selector (context: ExtensionContext) =
                         else
                             None
                     )
-                    |> Promise.all
+                    |> Promise.all //TODO: Change into promise fold
                     |> Promise.onSuccess (fun n ->
                         n
                         |> Seq.toList
@@ -556,7 +556,7 @@ let activate selector (context: ExtensionContext) =
                         | [] -> Promise.lift []
                         | xs ->  r.RunTests msgHandler xs
                     )
-                    |> Promise.all
+                    |> Promise.all //TODO: Change into promise fold
                     |> Promise.onSuccess (fun n ->
                         msgHandler |> report completedMsg
                         n
@@ -605,7 +605,7 @@ let activate selector (context: ExtensionContext) =
                         | [] -> Promise.lift []
                         | xs ->  r.DebugTests msgHandler xs
                     )
-                    |> Promise.all
+                    |> Promise.all //TODO: Change into promise fold
                     |> Promise.onSuccess (fun n ->
                         msgHandler |> report completedMsg
                         n
@@ -631,8 +631,10 @@ let activate selector (context: ExtensionContext) =
             runnerRegister.Values
             |> Seq.map (fun r ->
                 let prjs = projects |> List.filter r.ShouldProjectBeRun
-                r.RunAll msgHandler prjs )
-            |> Promise.all
+                match prjs with
+                | [] -> Promise.lift []
+                | prjs -> r.RunAll msgHandler prjs )
+            |> Promise.all //TODO: Change into promise fold
             |> Promise.onSuccess (fun n ->
                 msgHandler |> report completedMsg
                 n
@@ -656,8 +658,10 @@ let activate selector (context: ExtensionContext) =
             runnerRegister.Values
             |> Seq.map (fun r ->
                 let prjs = projects |> List.filter r.ShouldProjectBeRun
-                r.DebugAll msgHandler prjs )
-            |> Promise.all
+                match prjs with
+                | [] -> Promise.lift []
+                | prjs -> r.DebugAll msgHandler prjs )
+            |> Promise.all //TODO: Change into promise fold
             |> Promise.onSuccess (fun n ->
                 msgHandler |> report completedMsg
                 n
@@ -690,7 +694,7 @@ let activate selector (context: ExtensionContext) =
                 | [] -> Promise.lift []
                 | xs ->  r.RunTests msgHandler xs
             )
-            |> Promise.all
+            |> Promise.all //TODO: Change into promise fold
             |> Promise.onSuccess (fun n ->
                 msgHandler |> report completedMsg
                 n
@@ -723,7 +727,7 @@ let activate selector (context: ExtensionContext) =
                 | [] -> Promise.lift []
                 | xs ->  r.DebugTests msgHandler xs
             )
-            |> Promise.all
+            |> Promise.all //TODO: Change into promise fold
             |> Promise.onSuccess (fun n ->
                 msgHandler |> report completedMsg
                 n
