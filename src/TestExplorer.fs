@@ -468,10 +468,11 @@ let activate selector (context: ExtensionContext) =
                         |> List.collect id
                         |> handleTestResults
                     )
-                    |> Promise.onFail (fun _ ->
+                    |> Promise.onFail (fun n ->
                         msgHandler |> report failedRunMsg
+                        window.showErrorMessage (sprintf "Running test failed - %O" n)
+                        |> ignore
 
-                        //TODO: HANDLE ERROR
                         ()
                     )
             )
@@ -515,10 +516,11 @@ let activate selector (context: ExtensionContext) =
                         |> List.collect id
                         |> handleTestResults
                     )
-                    |> Promise.onFail (fun _ ->
+                    |> Promise.onFail (fun n ->
                         msgHandler |> report failedRunMsg
+                        window.showErrorMessage (sprintf "Running test failed - %O" n)
+                        |> ignore
 
-                        //TODO: HANDLE ERROR
                         ()
                     )
             )
@@ -564,10 +566,11 @@ let activate selector (context: ExtensionContext) =
                         |> List.collect id
                         |> handleTestResults
                     )
-                    |> Promise.onFail (fun _ ->
+                    |> Promise.onFail (fun n ->
                         msgHandler |> report failedRunMsg
+                        window.showErrorMessage (sprintf "Running test failed - %O" n)
+                        |> ignore
 
-                        //TODO: HANDLE ERROR
                         ()
                     )
             )
@@ -613,10 +616,11 @@ let activate selector (context: ExtensionContext) =
                         |> List.collect id
                         |> handleTestResults
                     )
-                    |> Promise.onFail (fun _ ->
+                    |> Promise.onFail (fun n ->
                         msgHandler |> report failedRunMsg
+                        window.showErrorMessage (sprintf "Running test failed - %O" n)
+                        |> ignore
 
-                        //TODO: HANDLE ERROR
                         ()
                     )
             )
@@ -642,10 +646,11 @@ let activate selector (context: ExtensionContext) =
                 |> List.collect id
                 |> handleTestResults
             )
-            |> Promise.onFail (fun _ ->
+            |> Promise.onFail (fun n ->
                 msgHandler |> report failedRunMsg
+                window.showErrorMessage (sprintf "Running test failed - %O" n)
+                |> ignore
 
-                //TODO: HANDLE ERROR
                 ()
             )
         )
@@ -669,10 +674,11 @@ let activate selector (context: ExtensionContext) =
                 |> List.collect id
                 |> handleTestResults
             )
-            |> Promise.onFail (fun _ ->
+            |> Promise.onFail (fun n ->
                 msgHandler |> report failedRunMsg
+                window.showErrorMessage (sprintf "Running test failed - %O" n)
+                |> ignore
 
-                //TODO: HANDLE ERROR
                 ()
             )
         )
@@ -702,10 +708,11 @@ let activate selector (context: ExtensionContext) =
                 |> List.collect id
                 |> handleTestResults
             )
-            |> Promise.onFail (fun _ ->
+            |> Promise.onFail (fun n ->
                 msgHandler |> report failedRunMsg
+                window.showErrorMessage (sprintf "Running test failed - %O" n)
+                |> ignore
 
-                //TODO: HANDLE ERROR
                 ()
             )
         )
@@ -735,10 +742,11 @@ let activate selector (context: ExtensionContext) =
                 |> List.collect id
                 |> handleTestResults
             )
-            |> Promise.onFail (fun _ ->
+            |> Promise.onFail (fun n ->
                 msgHandler |> report failedRunMsg
+                window.showErrorMessage (sprintf "Running test failed - %O" n)
+                |> ignore
 
-                //TODO: HANDLE ERROR
                 ()
             )
         )

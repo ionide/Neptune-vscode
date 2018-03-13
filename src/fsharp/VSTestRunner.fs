@@ -27,7 +27,13 @@ let convert =  Globals.require.Invoke "xml-js" |> unbox<obj>
 
 let buildProjs api projs =
     projs
-    |> List.fold (fun p proj -> p |> Promise.bind (fun _ -> api.BuildProject proj)) Promise.empty
+    |> List.fold (fun p proj ->  p |> Promise.bind (fun code ->
+        if code = "1" then Promise.reject "Build failed"
+        else api.BuildProject proj)) (Promise.lift "")
+    |> Promise.bind (fun code ->
+        if code = "1" then Promise.reject "Build failed"
+        else Promise.lift ""
+    )
 
 let getXml (projs : Project[]) =
     let p = projs.[0]
