@@ -183,7 +183,7 @@ let start' serverExe (args : string list) =
         |> ignore
     )
     |> Promise.onFail (fun err ->
-        "Failed to start Neptune server. Please check if dotnet is in PATH"
+        "Failed to start Neptune server. Please check if dotnet is installed and is in PATH"
         |> vscode.window.showErrorMessage
         |> ignore)
 

@@ -134,7 +134,7 @@ let buildProjs api projs =
 
 let runExpectoProject (api : Api) project args =
     match api.GetProjectLauncher outputChannel project with
-    | None -> Promise.empty
+    | None -> Promise.lift ""
     | Some launcher ->
         promise {
             let exe = project.Output

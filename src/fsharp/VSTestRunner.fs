@@ -470,7 +470,7 @@ let createRunner (api : Api) =
                             |> Array.toList
                         let results =
                             match outs with
-                            | [] -> Promise.empty
+                            | [] -> Promise.lift [||]
                             | [ (_, projs) ] -> runAllTests projs [||]
                             | (_, projs)::xs ->
                                 xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> runAllTests e acc)) (runAllTests projs [||])
@@ -513,7 +513,7 @@ let createRunner (api : Api) =
 
                         let vstest =
                             match outs with
-                            | [] -> Promise.empty
+                            | [] -> Promise.lift [||]
                             | [ (_, projs) ] -> discoverTests projs [||]
                             | (_, projs)::xs ->
                                 xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> discoverTests e acc)) (discoverTests projs [||])
@@ -534,7 +534,7 @@ let createRunner (api : Api) =
                                     |> Array.map snd
 
                                 match outs with
-                                | [] -> Promise.empty
+                                | [] -> Promise.lift [||]
                                 | [ (_, projs) ] ->
                                     let tests = getTests projs
                                     runSomeTests projs tests [||]
@@ -581,7 +581,7 @@ let createRunner (api : Api) =
 
                         let vstest =
                             match outs with
-                            | [] -> Promise.empty
+                            | [] -> Promise.lift [||]
                             | [ (_, projs) ] -> discoverTests projs [||]
                             | (_, projs)::xs ->
                                 xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> discoverTests e acc)) (discoverTests projs [||])
@@ -598,7 +598,7 @@ let createRunner (api : Api) =
                                     |> Array.map snd
 
                                 match outs with
-                                | [] -> Promise.empty
+                                | [] -> Promise.lift [||]
                                 | [ (_, projs) ] ->
                                     runSomeTests projs tests [||]
                                 | (_, projs)::xs ->
@@ -634,7 +634,7 @@ let createRunner (api : Api) =
 
                 let vstest =
                     match outs with
-                    | [] -> Promise.empty
+                    | [] -> Promise.lift [||]
                     | [ (_, projs) ] -> discoverTests projs [||]
                     | (_, projs)::xs ->
                         xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> discoverTests e acc)) (discoverTests projs [||])
@@ -651,7 +651,7 @@ let createRunner (api : Api) =
                             |> Array.map snd
 
                         match outs with
-                        | [] -> Promise.empty
+                        | [] -> Promise.lift [||]
                         | [ (_, projs) ] ->
                             debugSomeTests projs tests [||]
                         | (_, projs)::xs ->
@@ -678,7 +678,7 @@ let createRunner (api : Api) =
                     |> Array.toList
                 let results =
                     match outs with
-                    | [] -> Promise.empty
+                    | [] -> Promise.lift [||]
                     | [ (_, projs) ] -> debugAllTests projs [||]
                     | (_, projs)::xs ->
                         xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> debugAllTests e acc)) (debugAllTests projs [||])
@@ -708,7 +708,7 @@ let createRunner (api : Api) =
 
                 let vstest =
                     match outs with
-                    | [] -> Promise.empty
+                    | [] -> Promise.lift [||]
                     | [ (_, projs) ] -> discoverTests projs [||]
                     | (_, projs)::xs ->
                         xs |> List.fold (fun acc (_,e) -> acc |> Promise.bind (fun acc -> discoverTests e acc)) (discoverTests projs [||])
@@ -729,7 +729,7 @@ let createRunner (api : Api) =
                             |> Array.map snd
 
                         match outs with
-                        | [] -> Promise.empty
+                        | [] -> Promise.lift [||]
                         | [ (_, projs) ] ->
                             let tests = getTests projs
                             debugSomeTests projs tests [||]
