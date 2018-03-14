@@ -66,3 +66,15 @@ module NodeUtil =
 
     [<Import("*", "util")>]
     let Util: IExports = jsNative
+
+module Promise =
+    open Ionide.VSCode.Helpers
+
+    let collect f xs =
+        xs |> Seq.fold (fun acc e ->
+            promise {
+                let! acc = acc
+                let! res = f e
+                return List.append acc res
+            }
+        ) (Promise.lift [])

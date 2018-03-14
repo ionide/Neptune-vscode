@@ -454,19 +454,13 @@ let activate selector (context: ExtensionContext) =
                 | Some prj ->
                     msgHandler |> report startingMsg
                     runnerRegister.Values
-                    |> Seq.choose (fun r ->
-                        if r.ShouldProjectBeRun prj then
-                            Some (r.RunList msgHandler (prj, m.FullName.Trim( '"', ' ', '\\', '/')))
-                        else
-                            None
+                    |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
+                    |> Promise.collect (fun r ->
+                        r.RunList msgHandler (prj, m.FullName.Trim( '"', ' ', '\\', '/'))
                     )
-                    |> Promise.all //TODO: Change into promise fold
                     |> Promise.onSuccess (fun n ->
                         msgHandler |> report completedMsg
-                        n
-                        |> Seq.toList
-                        |> List.collect id
-                        |> handleTestResults
+                        handleTestResults n
                     )
                     |> Promise.onFail (fun n ->
                         msgHandler |> report failedRunMsg
@@ -503,18 +497,13 @@ let activate selector (context: ExtensionContext) =
                 | None -> undefined
                 | Some prj ->
                     runnerRegister.Values
-                    |> Seq.choose (fun r ->
-                        if r.ShouldProjectBeRun prj then
-                            Some (r.DebugList msgHandler (prj, m.FullName.Trim( '"', ' ', '\\', '/')))
-                        else
-                            None
+                    |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
+                    |> Promise.collect (fun r ->
+                        r.DebugList msgHandler (prj, m.FullName.Trim( '"', ' ', '\\', '/'))
                     )
-                    |> Promise.all //TODO: Change into promise fold
                     |> Promise.onSuccess (fun n ->
-                        n
-                        |> Seq.toList
-                        |> List.collect id
-                        |> handleTestResults
+                        msgHandler |> report completedMsg
+                        handleTestResults n
                     )
                     |> Promise.onFail (fun n ->
                         msgHandler |> report failedRunMsg
@@ -552,19 +541,15 @@ let activate selector (context: ExtensionContext) =
                     msgHandler |> report startingMsg
                     let projectsWithTests = [prj, [m.FullName.Trim( '"', ' ', '\\', '/') ] ]
                     runnerRegister.Values
-                    |> Seq.map (fun r ->
+                    |> Promise.collect (fun r ->
                         let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
                         match prjsWithTsts with
                         | [] -> Promise.lift []
                         | xs ->  r.RunTests msgHandler xs
                     )
-                    |> Promise.all //TODO: Change into promise fold
                     |> Promise.onSuccess (fun n ->
                         msgHandler |> report completedMsg
-                        n
-                        |> Seq.toList
-                        |> List.collect id
-                        |> handleTestResults
+                        handleTestResults n
                     )
                     |> Promise.onFail (fun n ->
                         msgHandler |> report failedRunMsg
@@ -602,19 +587,15 @@ let activate selector (context: ExtensionContext) =
                 | Some prj ->
                     let projectsWithTests = [prj, [m.FullName.Trim( '"', ' ', '\\', '/') ] ]
                     runnerRegister.Values
-                    |> Seq.map (fun r ->
+                    |> Promise.collect (fun r ->
                         let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
                         match prjsWithTsts with
                         | [] -> Promise.lift []
                         | xs ->  r.DebugTests msgHandler xs
                     )
-                    |> Promise.all //TODO: Change into promise fold
                     |> Promise.onSuccess (fun n ->
                         msgHandler |> report completedMsg
-                        n
-                        |> Seq.toList
-                        |> List.collect id
-                        |> handleTestResults
+                        handleTestResults n
                     )
                     |> Promise.onFail (fun n ->
                         msgHandler |> report failedRunMsg
@@ -633,18 +614,14 @@ let activate selector (context: ExtensionContext) =
             let projects = getProjectList ()
             msgHandler |> report startingMsg
             runnerRegister.Values
-            |> Seq.map (fun r ->
+            |> Promise.collect (fun r ->
                 let prjs = projects |> List.filter r.ShouldProjectBeRun
                 match prjs with
                 | [] -> Promise.lift []
                 | prjs -> r.RunAll msgHandler prjs )
-            |> Promise.all //TODO: Change into promise fold
             |> Promise.onSuccess (fun n ->
                 msgHandler |> report completedMsg
-                n
-                |> Seq.toList
-                |> List.collect id
-                |> handleTestResults
+                handleTestResults n
             )
             |> Promise.onFail (fun n ->
                 msgHandler |> report failedRunMsg
@@ -661,18 +638,14 @@ let activate selector (context: ExtensionContext) =
             let projects = getProjectList ()
             msgHandler |> report startingMsg
             runnerRegister.Values
-            |> Seq.map (fun r ->
+            |> Promise.collect (fun r ->
                 let prjs = projects |> List.filter r.ShouldProjectBeRun
                 match prjs with
                 | [] -> Promise.lift []
                 | prjs -> r.DebugAll msgHandler prjs )
-            |> Promise.all //TODO: Change into promise fold
             |> Promise.onSuccess (fun n ->
                 msgHandler |> report completedMsg
-                n
-                |> Seq.toList
-                |> List.collect id
-                |> handleTestResults
+                handleTestResults n
             )
             |> Promise.onFail (fun n ->
                 msgHandler |> report failedRunMsg
@@ -694,19 +667,15 @@ let activate selector (context: ExtensionContext) =
 
             msgHandler |> report startingMsg
             runnerRegister.Values
-            |> Seq.map (fun r ->
+            |> Promise.collect (fun r ->
                 let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
                 match prjsWithTsts with
                 | [] -> Promise.lift []
                 | xs ->  r.RunTests msgHandler xs
             )
-            |> Promise.all //TODO: Change into promise fold
             |> Promise.onSuccess (fun n ->
                 msgHandler |> report completedMsg
-                n
-                |> Seq.toList
-                |> List.collect id
-                |> handleTestResults
+                handleTestResults n
             )
             |> Promise.onFail (fun n ->
                 msgHandler |> report failedRunMsg
@@ -728,19 +697,15 @@ let activate selector (context: ExtensionContext) =
 
             msgHandler |> report startingMsg
             runnerRegister.Values
-            |> Seq.map (fun r ->
+            |> Promise.collect (fun r ->
                 let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
                 match prjsWithTsts with
                 | [] -> Promise.lift []
                 | xs ->  r.DebugTests msgHandler xs
             )
-            |> Promise.all //TODO: Change into promise fold
             |> Promise.onSuccess (fun n ->
                 msgHandler |> report completedMsg
-                n
-                |> Seq.toList
-                |> List.collect id
-                |> handleTestResults
+                handleTestResults n
             )
             |> Promise.onFail (fun n ->
                 msgHandler |> report failedRunMsg
