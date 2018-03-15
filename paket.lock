@@ -62,16 +62,16 @@ NUGET
       System.Runtime.InteropServices (>= 4.3) - restriction: >= netstandard1.1
       System.Text.Encoding (>= 4.3) - restriction: >= netstandard1.1
       System.Threading (>= 4.3) - restriction: >= netstandard1.1
-    Microsoft.Net.Compilers (2.6.1) - restriction: >= netcoreapp2.0
-    Microsoft.NETCore.App (2.0.5) - restriction: >= netcoreapp2.0
-      Microsoft.NETCore.DotNetHostPolicy (>= 2.0.5) - restriction: >= netcoreapp2.0
+    Microsoft.Net.Compilers (2.7) - restriction: >= netcoreapp2.0
+    Microsoft.NETCore.App (2.0.6) - restriction: >= netcoreapp2.0
+      Microsoft.NETCore.DotNetHostPolicy (>= 2.0.6) - restriction: >= netcoreapp2.0
       Microsoft.NETCore.Platforms (>= 2.0.1) - restriction: >= netcoreapp2.0
       NETStandard.Library (>= 2.0.1) - restriction: >= netcoreapp2.0
-    Microsoft.NETCore.DotNetAppHost (2.0.5) - restriction: >= netcoreapp2.0
-    Microsoft.NETCore.DotNetHostPolicy (2.0.5) - restriction: >= netcoreapp2.0
-      Microsoft.NETCore.DotNetHostResolver (>= 2.0.5)
-    Microsoft.NETCore.DotNetHostResolver (2.0.5) - restriction: >= netcoreapp2.0
-      Microsoft.NETCore.DotNetAppHost (>= 2.0.5)
+    Microsoft.NETCore.DotNetAppHost (2.0.6) - restriction: >= netcoreapp2.0
+    Microsoft.NETCore.DotNetHostPolicy (2.0.6) - restriction: >= netcoreapp2.0
+      Microsoft.NETCore.DotNetHostResolver (>= 2.0.6)
+    Microsoft.NETCore.DotNetHostResolver (2.0.6) - restriction: >= netcoreapp2.0
+      Microsoft.NETCore.DotNetAppHost (>= 2.0.6)
     Microsoft.NETCore.Platforms (2.0.1) - restriction: >= netcoreapp2.0
     Microsoft.NETCore.Targets (2.0) - restriction: || (&& (< monoandroid) (< monotouch) (< net45) (>= netstandard1.6) (< netstandard2.0) (< win8) (< wpa81) (< xamarinios) (< xamarinmac) (< xamarintvos) (< xamarinwatchos)) (&& (< monoandroid) (< net45) (< netstandard1.3) (>= netstandard1.6) (< win8) (< wpa81)) (&& (< monoandroid) (< net45) (< netstandard1.4) (>= netstandard1.6) (< win8) (< wpa81)) (&& (< monoandroid) (< net45) (< netstandard1.5) (>= netstandard1.6) (< win8) (< wpa81)) (&& (< net45) (>= net46) (< netstandard1.4) (>= netstandard1.6)) (&& (< net45) (>= netstandard1.6) (< portable-net451+win81+wpa81) (< win8)) (&& (< netstandard1.5) (>= netstandard1.6) (>= uap10.0) (< win8) (< wpa81)) (&& (>= netstandard1.6) (< portable-net45+win8+wpa81))
     Microsoft.Win32.Primitives (4.3) - restriction: || (&& (< monoandroid) (< monotouch) (< net45) (>= netstandard1.6) (< netstandard2.0) (< wpa81) (< xamarinios) (< xamarinmac) (< xamarintvos) (< xamarinwatchos)) (&& (< monoandroid) (< net45) (< netstandard1.4) (>= netstandard1.6) (< wpa81)) (&& (< monoandroid) (< net45) (< netstandard1.5) (>= netstandard1.6) (< wpa81)) (&& (>= net46) (< netstandard1.4) (>= netstandard1.6)) (&& (< netstandard1.5) (>= netstandard1.6) (>= uap10.0))
@@ -623,10 +623,10 @@ GITHUB
     src/Helpers.fs (771740b1b8be6479841e44804e311f42646d5345)
 GIT
   remote: https://github.com/Krzysztof-Cieslak/Neptune.git
-     (6c4f33b718340c459508c4fc90037002fea37ca7)
+     (8bec4c1829ec9dafd2817d264cfe9925a2e297ce)
       build: build.cmd Publish
       os: windows
-     (6c4f33b718340c459508c4fc90037002fea37ca7)
+     (8bec4c1829ec9dafd2817d264cfe9925a2e297ce)
       build: build.sh Publish
       os: mono
   remote: https://github.com/Krzysztof-Cieslak/Neptune-vstest.git
@@ -639,4 +639,4 @@ GIT
 GROUP build
 NUGET
   remote: https://www.nuget.org/api/v2
-    FAKE (4.64.9)
+    FAKE (4.64.11)

@@ -254,14 +254,14 @@ let private handleTestResults (results: TestResult list) =
         let name = n.FullName.Trim( '"', ' ', '\\', '/')
         let name =
             if n.Runner = "VSTest" then
-               name.Replace('/', '.').Replace('\\', '.')
+               name.Replace('/', '.').Replace('\\', '.').Replace('+', '.')
             else
                 name
         match tsts |> Seq.tryFind (fun t ->
             let tName = t.FullName.Trim( '"', ' ', '\\', '/')
             let tName =
                 if n.Runner = "VSTest" then
-                    tName.Replace('/', '.').Replace('\\', '.').Replace("this.", "") //TODO: THIS IS HACK, SHOULD BE HANDLED BY THE DETECTION SERVER
+                    tName.Replace('/', '.').Replace('\\', '.')
                 else
                     tName
             tName = name ) with

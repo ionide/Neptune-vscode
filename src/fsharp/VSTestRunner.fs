@@ -274,10 +274,10 @@ let runSomeTestsWithOldRunner (proj: Project) (tests: string[]) initial : Fable.
         let args =
             if isNUnit then
                 "\"" + proj.Output + "\""
-                + " --test=" + (tests |> Array.map (fun n -> n.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.').Replace("this.", "")) |> String.concat ",")
+                + " --test=" + (tests |> Array.map (fun n -> n.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.')) |> String.concat ",")
             else
                 "\"" + proj.Output  + "\""
-                + " " + (tests |> Array.map (fun n -> "-method \"" + n.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.').Replace("this.", "") + "\"") |> String.concat " ")
+                + " " + (tests |> Array.map (fun n -> "-method \"" + n.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.') + "\"") |> String.concat " ")
                 + " -nunit"
         Process.spawn runner "mono" args
         |> Process.toPromise
@@ -291,11 +291,11 @@ let runListTestsWithOldRunner (proj: Project) (list : string) initial =
     match findOldRunner proj with
     | None -> Promise.lift initial
     | Some (isNUnit, runner) ->
-        let list = list.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.').Replace("this.", "")
+        let list = list.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.')
         let args =
             if isNUnit then
                 "\"" + proj.Output + "\""
-                + " --where \"class == " + list + " || namespace == " + list + "\""
+                + " --where \"class =~ " + list + " || namespace =~ " + list + "\""
             else
                 "\"" + proj.Output + "\""
                 + " -namespace \"" + list + "\"" + " -class \"" + list + "\""
@@ -524,7 +524,7 @@ let createRunner (api : Api) =
                                     let names =
                                         testsByProj
                                         |> List.collect (fun (p, ts) -> if ps |> Array.contains p then ts else [])
-                                        |> List.map (fun t -> t.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.').Replace("this.", "") )
+                                        |> List.map (fun t -> t.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.'))
 
                                     n
                                     |> Array.filter (fun (n, _) ->
@@ -719,7 +719,7 @@ let createRunner (api : Api) =
                             let names =
                                 testsByProj
                                 |> List.collect (fun (p, ts) -> if ps |> Array.contains p then ts else [])
-                                |> List.map (fun t -> t.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.').Replace("this.", "") )
+                                |> List.map (fun t -> t.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.'))
 
                             n
                             |> Array.filter (fun (n, _) ->
