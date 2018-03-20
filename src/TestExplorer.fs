@@ -379,6 +379,10 @@ let private createCodeLensesProvider () =
             |> Seq.where (fun t -> t.FileName = doc.fileName)
             |> Seq.collect (fun t ->
                 let runner = runnerRegister.[t.Type]
+                let detector = detectorRegister.[doc.languageId]
+                match detector.RunOnFileEdit doc with
+                | false -> []
+                | true ->
                 match getProjectForFile t.FileName with
                 | None -> []
                 | Some project ->
