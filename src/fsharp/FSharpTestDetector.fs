@@ -39,6 +39,10 @@ let detector =
             let request = {ProjectRequest.FileName = pr.Project; Files = List.toArray pr.Files }
             LanguageService.projectRequest request
             |> Promise.map (fun n -> n.Data)
+
+        member __.RunOnFileEdit _ = true
+
+        member __.RunOnFileSave _ = false
     }
 
 let activate (context: ExtensionContext)  =

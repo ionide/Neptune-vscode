@@ -129,3 +129,5 @@ type ITestDetector =
     abstract member GetProjectForFile : SourceFilePath -> Project option
     abstract member GetTestsForFile : TextDocument -> JS.Promise<ParseResponse>
     abstract member GetTestsForProject : Project -> JS.Promise<ParseResponse []>
+    abstract member RunOnFileEdit : TextDocument -> bool
+    abstract member RunOnFileSave : TextDocument -> bool

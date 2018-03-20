@@ -231,7 +231,16 @@ let private handle (input : ParseResponse) =
 
 let parseTextDocument (document : TextDocument) =
     detectorRegister.Values
-    |> Seq.tryFind (fun dt -> dt.ShouldHandleFile document)
+    |> Seq.tryFind (fun dt -> dt.ShouldHandleFile document && dt.RunOnFileEdit document)
+    |> Option.iter (fun dt ->
+        dt.GetTestsForFile document
+        |> Promise.onSuccess (handle)
+        |> ignore
+    )
+
+let parseTextDocumentSave (document : TextDocument) =
+    detectorRegister.Values
+    |> Seq.tryFind (fun dt -> dt.ShouldHandleFile document && dt.RunOnFileSave document)
     |> Option.iter (fun dt ->
         dt.GetTestsForFile document
         |> Promise.onSuccess (handle)
@@ -416,6 +425,7 @@ let private createCodeLensesProvider () =
 
 let activate selector (context: ExtensionContext) =
     workspace.onDidChangeTextDocument.Invoke(fun te -> parseTextDocument te.document |> unbox) |> context.subscriptions.Add
+    workspace.onDidSaveTextDocument.Invoke(fun te -> parseTextDocumentSave te |> unbox) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.testExplorer.goTo", Func<obj, obj>(fun n ->
         let entry = unbox<TreeModel> n
