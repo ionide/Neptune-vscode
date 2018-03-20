@@ -9,6 +9,7 @@ open Fable.Core
 open Fable.Import.vscode
 open Fable.Import.Node
 open Utils
+open Fable.Import.Node.Process
 
 type [<Pojo>] RequestLaunch =
     { name: string
@@ -247,7 +248,7 @@ let nUnitOldResultToTestResult obj =
         | _ -> ""
     {FullName = name; ErrorMessage = error; State = state; Timer = timer; Runner = "VSTest" }
 
-
+let log = createConfiguredLoggers "NEPTUNE" "Neptune (F# - Classic Runners Adapter)"
 
 let runAllTestsWithOldRunner (proj: Project) initial =
     match findOldRunner proj with
@@ -259,13 +260,25 @@ let runAllTestsWithOldRunner (proj: Project) initial =
                 "\"" + proj.Output + "\""
                 + " -nunit"
         Process.spawn runner "mono" args
+        |> Process.onOutput (fun buffer ->
+            let outputString = buffer.toString()
+            log.Debug(outputString)
+        )
+        |> Process.onErrorOutput (fun buffer ->
+            let outputString = buffer.toString()
+            log.Error(outputString)
+        )
+        |> Process.onError (fun err ->
+            let error = unbox<Fable.Import.Node.Base.NodeJS.Error> err
+            let outputString = error.message
+            log.Error(outputString)
+        )
         |> Process.toPromise
         |> Promise.map (fun _ ->
             let res = getNUnitResults ()
             let res = res |> Array.map nUnitOldResultToTestResult
             Array.append initial res
         )
-
 
 let runSomeTestsWithOldRunner (proj: Project) (tests: string[]) initial : Fable.Import.JS.Promise<TestResult[]> =
     match findOldRunner proj with
@@ -280,6 +293,19 @@ let runSomeTestsWithOldRunner (proj: Project) (tests: string[]) initial : Fable.
                 + " " + (tests |> Array.map (fun n -> "-method \"" + n.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.') + "\"") |> String.concat " ")
                 + " -nunit"
         Process.spawn runner "mono" args
+        |> Process.onOutput (fun buffer ->
+            let outputString = buffer.toString()
+            log.Debug(outputString)
+        )
+        |> Process.onErrorOutput (fun buffer ->
+            let outputString = buffer.toString()
+            log.Error(outputString)
+        )
+        |> Process.onError (fun err ->
+            let error = unbox<Fable.Import.Node.Base.NodeJS.Error> err
+            let outputString = error.message
+            log.Error(outputString)
+        )
         |> Process.toPromise
         |> Promise.map (fun _ ->
             let res = getNUnitResults ()
@@ -301,6 +327,19 @@ let runListTestsWithOldRunner (proj: Project) (list : string) initial =
                 + " -namespace \"" + list + "\"" + " -class \"" + list + "\""
                 + " -nunit"
         Process.spawn runner "mono" args
+        |> Process.onOutput (fun buffer ->
+            let outputString = buffer.toString()
+            log.Debug(outputString)
+        )
+        |> Process.onErrorOutput (fun buffer ->
+            let outputString = buffer.toString()
+            log.Error(outputString)
+        )
+        |> Process.onError (fun err ->
+            let error = unbox<Fable.Import.Node.Base.NodeJS.Error> err
+            let outputString = error.message
+            log.Error(outputString)
+        )
         |> Process.toPromise
         |> Promise.map (fun _ ->
             let res = getNUnitResults ()

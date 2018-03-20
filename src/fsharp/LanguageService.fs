@@ -1,8 +1,8 @@
 module LanguageService
+
 open Fable.Import.Node
 open Fable.Import
 open Utils
-open vscode
 open System
 open Fable.Core.JsInterop
 open Ionide.VSCode.Helpers
@@ -12,67 +12,7 @@ let ax =  Globals.require.Invoke "axios" |> unbox<Axios.AxiosStatic>
 
 let devMode = false
 
-[<RequireQualifiedAccess>]
-type LogConfigSetting = None | Output | DevConsole | Both
-let logLanguageServiceRequestsConfigSetting =
-    try
-        match "Neptune.logLanguageServiceRequests" |> Configuration.get "output" with
-        | "devconsole" -> LogConfigSetting.DevConsole
-        | "output" -> LogConfigSetting.Output
-        | "both" -> LogConfigSetting.Both
-        | _ -> LogConfigSetting.Output
-    with
-    | _ -> LogConfigSetting.Output
-
-// note: always log to the loggers, and let it decide where/if to write the message
-let createConfiguredLoggers source channelName =
-
-    let logLanguageServiceRequestsOutputWindowLevel () =
-        try
-            match "Neptune.logLanguageServiceRequestsOutputWindowLevel" |> Configuration.get "INFO" with
-            | "DEBUG" -> Level.DEBUG
-            | "INFO" -> Level.INFO
-            | "WARN" -> Level.WARN
-            | "ERROR" -> Level.ERROR
-            | _ -> Level.INFO
-        with
-        | _ -> Level.INFO
-
-    let channel, logRequestsToConsole =
-        match logLanguageServiceRequestsConfigSetting with
-        | LogConfigSetting.None -> None, false
-        | LogConfigSetting.Both -> Some (window.createOutputChannel channelName), true
-        | LogConfigSetting.DevConsole -> None, true
-        | LogConfigSetting.Output -> Some (window.createOutputChannel channelName), false
-
-    let logLevel = logLanguageServiceRequestsOutputWindowLevel ()
-    let editorSideLogger = ConsoleAndOutputChannelLogger(Some source, logLevel, channel, Some logLevel)
-
-    let showCurrentLevel level =
-        if level <> Level.DEBUG then
-            editorSideLogger.Info ("Logging to output at level %s. If you want detailed messages, try level DEBUG.", (level.ToString()))
-
-    editorSideLogger.ChanMinLevel |> showCurrentLevel
-
-    workspace.onDidChangeConfiguration
-    |> Event.invoke (fun _ ->
-        editorSideLogger.ChanMinLevel <- logLanguageServiceRequestsOutputWindowLevel ()
-        editorSideLogger.ChanMinLevel |> showCurrentLevel )
-    |> ignore
-
-    // show the stdout data printed from FSAC in a separate channel
-    let neptuneStdOutWriter =
-        if logRequestsToConsole then
-            let chan = window.createOutputChannel (channelName + " (server)")
-            chan.append
-        else
-            ignore
-
-    editorSideLogger, neptuneStdOutWriter
-
-let log, neptunStdoutWriter = createConfiguredLoggers "NEPTUNE" "Neptune"
-
-
+let log = createConfiguredLoggers "NEPTUNE" "Neptune (F# - detector service)"
 
 let genPort () =
     let r = JS.Math.random ()
@@ -141,12 +81,10 @@ let private request<'a, 'b> (action: string) (obj : 'a) =
 let parseRequest = request<ParseRequest, ParseResponse> "parse"
 let projectRequest = request<ProjectRequest, ProjectResponse> "project"
 
-
 let start' serverExe (args : string list) =
     Promise.create (fun resolve reject ->
         let child =
             let spawnLogged path (args: string list) =
-                neptunStdoutWriter (sprintf "Running: %s %s\n" path (args |> String.concat " "))
                 ChildProcess.spawn(path, args |> ResizeArray)
             spawnLogged serverExe
                 [ yield! args
@@ -160,23 +98,18 @@ let start' serverExe (args : string list) =
             // we inform the caller that it's ready to accept requests.
             let isStartedMessage = outputString.Contains "listener started in"
             if isStartedMessage then
-                neptunStdoutWriter ("Resolving startup promise because Neptune printed the 'listener started' message")
-                neptunStdoutWriter "\n"
                 service <- Some child
                 resolve child
                 isResolvedAsStarted <- true
 
-            neptunStdoutWriter outputString
         )
         |> Process.onError (fun e ->
             let error = unbox<JS.Error> e
-            neptunStdoutWriter (error.message)
             if not isResolvedAsStarted then
                 reject (error.message)
         )
         |> Process.onErrorOutput (fun n ->
             let buffer = unbox<Buffer.Buffer> n
-            neptunStdoutWriter (buffer.toString())
             if not isResolvedAsStarted then
                 reject (buffer.toString())
         )

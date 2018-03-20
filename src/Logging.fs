@@ -1,7 +1,9 @@
 [<AutoOpen>]
 module Logging
 
-open Fable.Import.vscode
+open Fable.Import
+open Utils
+open vscode
 open System
 
 [<RequireQualifiedAccess>]
@@ -93,3 +95,34 @@ type ConsoleAndOutputChannelLogger(source: string option, chanDefaultMinLevel: L
     member this.ErrorOnFailed text (p: Fable.Import.JS.Promise<_>) =
         p.catch(Func<obj,unit>(fun err -> this.Error(text + ": %O", err)))
         |> ignore
+
+// note: always log to the loggers, and let it decide where/if to write the message
+let createConfiguredLoggers source channelName =
+
+    let getLogLevel () =
+        try
+            match "Neptune.logLevel" |> Configuration.get "INFO" with
+            | "DEBUG" -> Level.DEBUG
+            | "INFO" -> Level.INFO
+            | "WARN" -> Level.WARN
+            | "ERROR" -> Level.ERROR
+            | _ -> Level.INFO
+        with
+        | _ -> Level.INFO
+
+    let logLevel = getLogLevel ()
+    let logger = ConsoleAndOutputChannelLogger(Some source, logLevel, Some (window.createOutputChannel channelName), Some logLevel)
+
+    let showCurrentLevel level =
+        if level <> Level.DEBUG then
+            logger.Info ("Logging to output at level %s. If you want detailed messages, try level DEBUG.", (level.ToString()))
+
+    logger.ChanMinLevel |> showCurrentLevel
+
+    workspace.onDidChangeConfiguration
+    |> Event.invoke (fun _ ->
+        logger.ChanMinLevel <- getLogLevel ()
+        logger.ChanMinLevel |> showCurrentLevel )
+    |> ignore
+
+    logger

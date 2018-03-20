@@ -14,6 +14,28 @@
   ],
   "main": "./neptune",
   "contributes": {
+    "configuration": {
+      "type": "object",
+      "title": "Neptune configuration",
+      "properties": {
+        "Neptune.logLevel": {
+          "type": "string",
+          "default": "INFO",
+          "description": "Set the verbosity for Neptune logging",
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARN",
+            "ERROR"
+          ]
+        }
+      }
+    },
+    "outputChannels": [
+      "Neptune (F# - detector service)",
+      "Neptune (F# - VSTest Adapter)",
+      "Neptune (F# - Classic Runners Adapter)"
+    ],
     "commands": [
       {
         "command": "neptune.runList",
