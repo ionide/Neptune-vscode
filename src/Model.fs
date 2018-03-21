@@ -131,3 +131,7 @@ type ITestDetector =
     abstract member GetTestsForProject : Project -> JS.Promise<ParseResponse []>
     abstract member RunOnFileEdit : TextDocument -> bool
     abstract member RunOnFileSave : TextDocument -> bool
+
+type IReporter =
+    abstract member dispose : unit -> unit
+    abstract member sendTelemetryEvent: string -> obj -> obj -> unit

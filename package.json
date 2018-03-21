@@ -10,6 +10,7 @@
     "babel-preset-es2015": "^6.24.1",
     "fable-loader": "^1.1.2",
     "vscode": "^1.1.5",
+    "vscode-extension-telemetry": "https://github.com/LambdaFactory/vscode-extension-telemetry#customSetting",
     "webpack": "^3.6.0",
     "webpack-node-externals": "^1.6.0",
     "xml-js": "^1.6.2"

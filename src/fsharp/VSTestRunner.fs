@@ -9,7 +9,6 @@ open Fable.Core
 open Fable.Import.vscode
 open Fable.Import.Node
 open Utils
-open Fable.Import.Node.Process
 
 type [<Pojo>] RequestLaunch =
     { name: string

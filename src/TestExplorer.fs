@@ -427,11 +427,12 @@ let private createCodeLensesProvider () =
 
 
 
-let activate selector (context: ExtensionContext) =
+let activate selector (context: ExtensionContext) (reporter : IReporter) =
     workspace.onDidChangeTextDocument.Invoke(fun te -> parseTextDocument te.document |> unbox) |> context.subscriptions.Add
     workspace.onDidSaveTextDocument.Invoke(fun te -> parseTextDocumentSave te |> unbox) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.testExplorer.goTo", Func<obj, obj>(fun n ->
+        reporter.sendTelemetryEvent "GoTo" undefined undefined
         let entry = unbox<TreeModel> n
         let line = entry.Range.StartLine - 1
         let uri = Uri.file entry.FileName
@@ -447,8 +448,11 @@ let activate selector (context: ExtensionContext) =
         withProgress (fun msgHandler ->
             let m =
                 if JS.isDefined m then
+                    reporter.sendTelemetryEvent "RunList/Activate" undefined undefined
                     Promise.lift <| unbox<TreeModel> m
                 else
+                    reporter.sendTelemetryEvent "RunList/Activate/Palette" undefined undefined
+
                     let tests =
                         flattedTests ()
                         |> Seq.filter (fun n -> n.List)
@@ -491,8 +495,10 @@ let activate selector (context: ExtensionContext) =
         withProgress (fun msgHandler ->
             let m =
                 if JS.isDefined m then
+                    reporter.sendTelemetryEvent "DebugList/Activate" undefined undefined
                     Promise.lift <| unbox<TreeModel> m
                 else
+                    reporter.sendTelemetryEvent "DebugList/Activate/Palette" undefined undefined
                     let tests =
                         flattedTests ()
                         |> Seq.filter (fun n -> n.List)
@@ -534,8 +540,10 @@ let activate selector (context: ExtensionContext) =
         withProgress (fun msgHandler ->
             let m =
                 if JS.isDefined m then
+                    reporter.sendTelemetryEvent "RunTest/Activate" undefined undefined
                     Promise.lift <| unbox<TreeModel> m
                 else
+                    reporter.sendTelemetryEvent "RunTest/Activate/Palette" undefined undefined
                     let tests =
                         flattedTests ()
                         |> Seq.filter (fun n -> not n.List)
@@ -580,8 +588,10 @@ let activate selector (context: ExtensionContext) =
         withProgress (fun msgHandler ->
             let m =
                 if JS.isDefined m then
+                    reporter.sendTelemetryEvent "DebugTest/Activate" undefined undefined
                     Promise.lift <| unbox<TreeModel> m
                 else
+                    reporter.sendTelemetryEvent "DebugTest/Activate/Palette" undefined undefined
                     let tests =
                         flattedTests ()
                         |> Seq.filter (fun n -> not n.List)
@@ -624,6 +634,7 @@ let activate selector (context: ExtensionContext) =
 
 
     commands.registerCommand("neptune.runAll", Func<obj, obj>(fun _ ->
+        reporter.sendTelemetryEvent "RunAll/Activate" undefined undefined
         withProgress (fun msgHandler ->
             let projects = getProjectList ()
             msgHandler |> report startingMsg
@@ -648,6 +659,7 @@ let activate selector (context: ExtensionContext) =
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.debugAll", Func<obj, obj>(fun _ ->
+        reporter.sendTelemetryEvent "DebugAll/Activate" undefined undefined
         withProgress (fun msgHandler ->
             let projects = getProjectList ()
             msgHandler |> report startingMsg
@@ -672,6 +684,7 @@ let activate selector (context: ExtensionContext) =
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.runFailed", Func<obj, obj>(fun _ ->
+        reporter.sendTelemetryEvent "RunFailed/Activate" undefined undefined
         withProgress (fun msgHandler ->
             let projectsWithTests =
                 getTests TestState.Failed
@@ -702,6 +715,7 @@ let activate selector (context: ExtensionContext) =
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.debugFailed", Func<obj, obj>(fun _ ->
+        reporter.sendTelemetryEvent "DebugFailed/Activate" undefined undefined
         withProgress (fun msgHandler ->
             let projectsWithTests =
                 getTests TestState.Failed
@@ -732,6 +746,7 @@ let activate selector (context: ExtensionContext) =
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.changeDisplayMode", Func<obj, obj>(fun _ ->
+        reporter.sendTelemetryEvent "ChangeDisplayMode" undefined undefined
         if display = 0 then display <- 1 else display <- 0
         refresh.fire undefined
         |> unbox
