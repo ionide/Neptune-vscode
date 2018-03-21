@@ -286,7 +286,7 @@ let runSomeTestsWithOldRunner (proj: Project) (tests: string[]) initial : Fable.
         let args =
             if isNUnit then
                 "\"" + proj.Output + "\""
-                + " --test=" + (tests |> Array.map (fun n -> n.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.')) |> String.concat ",")
+                + " --where \"test =~ " + (tests |> Array.map (fun n -> n.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.')) |> String.concat " || test =~ ") + "\" "
             else
                 "\"" + proj.Output  + "\""
                 + " " + (tests |> Array.map (fun n -> "-method \"" + n.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.') + "\"") |> String.concat " ")
