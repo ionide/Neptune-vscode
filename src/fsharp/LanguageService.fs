@@ -12,7 +12,7 @@ let ax =  Globals.require.Invoke "axios" |> unbox<Axios.AxiosStatic>
 
 let devMode = false
 
-let log = createConfiguredLoggers "NEPTUNE" "Neptune (F# - detector service)"
+let log = createConfiguredLoggers "NEPTUNE" "Neptune (F# - Detector Service)"
 
 let genPort () =
     let r = JS.Math.random ()

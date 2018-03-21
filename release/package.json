@@ -28,11 +28,16 @@
             "WARN",
             "ERROR"
           ]
+        },
+        "Neptune.enableTelemetry": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Neptunes telemetry"
         }
       }
     },
     "outputChannels": [
-      "Neptune (F# - detector service)",
+      "Neptune (F# - Detector Service)",
       "Neptune (F# - VSTest Adapter)",
       "Neptune (F# - Classic Runners Adapter)"
     ],
