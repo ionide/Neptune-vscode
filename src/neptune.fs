@@ -7,6 +7,8 @@ open JsInterop
 open Ionide.VSCode.Helpers
 open Model
 open Fable.Import.Node
+open System
+open Utils
 
 // vscode-extension-telemetry
 
@@ -29,6 +31,40 @@ let notifyTelemetry (context : vscode.ExtensionContext) =
         )
         |> ignore
 
+let checkKey (context : vscode.ExtensionContext) =
+    match context.globalState.get "productKey" with
+    | Some s -> Promise.lift true
+    | _ ->
+        let date =
+            match context.globalState.get "productFirstUse" with
+            | Some s -> DateTime.Parse s
+            | None ->
+                let d = DateTime.Now
+                context.globalState.update("productFirstUse", d.ToShortDateString()) |> ignore
+                d
+        let remaining = Math.Ceiling (date.AddDays(7.) - DateTime.Now).TotalDays
+        let rd = remaining.ToString()
+        let uri = vscode.Uri.parse "http://google.com"
+        if remaining > 0. then
+            let msg = sprintf "Neptune is paid extension. Your free trail has started on %s, and you have %s days left." (date.ToShortDateString()) rd
+            vscode.window.showWarningMessage(msg, "Buy Neptune")
+            |> Promise.onSuccess (fun n ->
+                if n = "Buy Neptune" then
+                    vscode.commands.executeCommand("vscode.open", uri)
+                    |> ignore
+            )
+            |> ignore
+            Promise.lift true
+        else
+            let msg = "Neptune is paid extension. Your free trail has ended."
+            vscode.window.showWarningMessage(msg, "Buy Neptune")
+            |> Promise.onSuccess (fun n ->
+                if n = "Buy Neptune" then
+                    vscode.commands.executeCommand("vscode.open", uri)
+                    |> ignore
+            )
+            |> ignore
+            Promise.lift false
 
 let activate (context : vscode.ExtensionContext) =
     let reporter : IReporter = createReporter(reporterConstr, "Neptune", "0.1.0", "9ed427d0-bc3a-4660-bea5-645012b626d5", "Neptune")
@@ -38,11 +74,15 @@ let activate (context : vscode.ExtensionContext) =
     let df' : DocumentSelector = df |> U3.Case2
 
     notifyTelemetry context |> ignore
-    TestExplorer.activate df' context reporter
-
-    FSharpTestDetector.activate context
-    |> Promise.onSuccess (fun (api, storagePath) ->
-        ExpectoRunner.activate api
-        VSTestRunner.activate api storagePath.Value
+    checkKey context
+    |> Promise.onSuccess (fun n ->
+        if n then
+            TestExplorer.activate df' context reporter
+            FSharpTestDetector.activate context
+            |> Promise.onSuccess (fun (api, storagePath) ->
+                ExpectoRunner.activate api
+                VSTestRunner.activate api storagePath.Value
+            )
+            |> ignore
     )
     |> ignore
