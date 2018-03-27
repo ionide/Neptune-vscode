@@ -91,6 +91,11 @@ let toTestResult (testCase: obj) : TestResult =
         let psp = !!testCase?TestCase?Properties
         psp |> Array.find (fun (n :obj) -> !!(n?Key?Id) = "TestCase.FullyQualifiedName") |> fun n -> !!n?Value
 
+    let fileName =
+        let psp = !!testCase?TestCase?Properties
+        psp |> Array.find (fun (n :obj) -> !!(n?Key?Id) = "TestCase.CodeFilePath") |> fun n -> !!n?Value
+
+
     let timer =
         let psp = !!testCase?Properties
         psp |> Array.find (fun (n :obj) -> !!(n?Key?Id) = "TestResult.Duration") |> fun n -> !!n?Value
@@ -115,7 +120,7 @@ let toTestResult (testCase: obj) : TestResult =
         | 3 -> TestState.Ignored
         | _ -> TestState.NotRun
 
-    {FullName = name; ErrorMessage = error; State = state; Timer = timer; Runner = "VSTest" }
+    {FullName = name; ErrorMessage = error; State = state; Timer = timer; Runner = "VSTest"; FileName = Some fileName }
 
 
 let discoverTests (projs : Project[]) initial =
@@ -245,7 +250,7 @@ let nUnitOldResultToTestResult obj =
             !!(unbox<obj[]> r?``_cdata``).[0]
         with
         | _ -> ""
-    {FullName = name; ErrorMessage = error; State = state; Timer = timer; Runner = "VSTest" }
+    {FullName = name; ErrorMessage = error; State = state; Timer = timer; Runner = "VSTest"; FileName = None }
 
 let log = createConfiguredLoggers "NEPTUNE" "Neptune (F# - Classic Runners Adapter)"
 

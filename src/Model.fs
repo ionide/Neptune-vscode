@@ -16,6 +16,7 @@ type TestResult = {
     Timer: string
     ErrorMessage: string
     Runner: string
+    FileName: string option
 }
 
 type Capability =

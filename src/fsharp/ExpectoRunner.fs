@@ -171,7 +171,8 @@ let runProjs api projsWithArgs =
                   State = TestState.Failed
                   Timer = tryGetTime name
                   ErrorMessage = tryGetError name
-                  Runner = "Expecto" } )
+                  Runner = "Expecto"
+                  FileName = None } )
         let ignored =
             getIgnored ()
             |> Seq.map (fun name ->
@@ -179,7 +180,8 @@ let runProjs api projsWithArgs =
                   State = TestState.Ignored
                   Timer = ""
                   ErrorMessage = ""
-                  Runner = "Expecto"  } )
+                  Runner = "Expecto"
+                  FileName = None  } )
         let passed =
             getPassed ()
             |> Seq.map (fun name ->
@@ -187,7 +189,8 @@ let runProjs api projsWithArgs =
                   State = TestState.Passed
                   Timer = tryGetTime name
                   ErrorMessage = ""
-                  Runner = "Expecto" } )
+                  Runner = "Expecto"
+                  FileName = None } )
         [ yield! failed; yield! ignored; yield! passed]
 
     )

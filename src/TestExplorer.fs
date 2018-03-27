@@ -266,19 +266,25 @@ let private handleTestResults (results: TestResult list) =
                name.Replace('/', '.').Replace('\\', '.').Replace('+', '.')
             else
                 name
-        match tsts |> Seq.tryFind (fun t ->
+        match tsts |> Seq.where (fun t ->
             let tName = t.FullName.Trim( '"', ' ', '\\', '/')
             let tName =
                 if n.Runner = "VSTest" then
                     tName.Replace('/', '.').Replace('\\', '.')
                 else
                     tName
-            tName = name ) with
-        | None -> ()
-        | Some tst ->
-            tst.State <- n.State
-            tst.Timer <- n.Timer
-            tst.ErrorMessage <- n.ErrorMessage
+            match n.FileName with
+            | None -> tName = name
+            | Some fn ->
+                tName = name && fn = t.FileName ) |> Seq.toArray with
+        | [||] -> ()
+        | xs ->
+            xs
+            |> Array.iter (fun tst ->
+                tst.State <- n.State
+                tst.Timer <- n.Timer
+                tst.ErrorMessage <- n.ErrorMessage
+            )
     )
     refresh.fire undefined
 
