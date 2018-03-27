@@ -1,16 +1,36 @@
 {
   "name": "neptune",
   "displayName": "Neptune",
-  "publisher": "Ionide",
+  "publisher": "LambdaFactory",
   "version": "0.0.1",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "description": "Visual Studio Code extension adding first class support for F# unit testing for both .Net Framework and .Net Core.",
+  "author": {
+    "name": "Krzysztof Cieślak",
+    "url": "https://twitter.com/k_cieslak"
+  },
+  "bugs": {
+    "url": "https://github.com/Krzysztof-Cieslak/Neptune-public/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Krzysztof-Cieslak/Neptune-public.git"
+  },
+  "homepage": "https://gumroad.com/l/NeptunePlugin",
+  "icon": "logo.png",
   "engines": {
     "vscode": "^0.10.10"
   },
   "categories": [
+    "Languages",
     "Other"
   ],
   "activationEvents": [
-    "*"
+    "workspaceContains:**/*.fs",
+    "workspaceContains:**/*.fsx",
+    "workspaceContains:**/*.fsproj",
+    "workspaceContains:**/*.sln",
+    "onLanguage:fsharp"
   ],
   "main": "./neptune",
   "contributes": {
