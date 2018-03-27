@@ -10,8 +10,6 @@ open Fable.Import.Node
 open System
 open Utils
 
-// vscode-extension-telemetry
-
 [<Import("default", from="vscode-extension-telemetry")>]
 let reporterConstr : obj = jsNative
 
@@ -31,9 +29,86 @@ let notifyTelemetry (context : vscode.ExtensionContext) =
         )
         |> ignore
 
+
+let private ax =  Globals.require.Invoke "axios" |> unbox<Axios.AxiosStatic>
+
+let authorizeKey (context : vscode.ExtensionContext) key =
+    let args =
+        createObj [
+            "product_permalink" ==> "NeptunePlugin"
+            "license_key" ==> key
+        ]
+
+    ax.post("https://api.gumroad.com/v2/licenses/verify", args)
+    |> Promise.map (fun n ->
+        let res = n.data
+        let dataS = unbox<string>res?purchase?created_at
+        let data = dataS.Substring(0,10)
+        context.globalState.update("productDate", data)
+        data
+    )
+
 let checkKey (context : vscode.ExtensionContext) =
+    let uri = vscode.Uri.parse "https://gumroad.com/l/NeptunePlugin"
     match context.globalState.get "productKey" with
-    | Some s -> Promise.lift true
+    | Some key ->
+        match context.globalState.get "productDate" with
+        | Some s ->
+            let d = DateTime.Parse s
+            let shouldCheck = DateTime.Now >= d.AddDays(1.)
+            if shouldCheck then
+                authorizeKey context key
+                |> Promise.either
+                    (fun data ->
+                        let ds = DateTime.Parse data
+                        if DateTime.Now <= ds.AddDays(1.) then
+                            Promise.lift true
+                        else
+                            vscode.window.showWarningMessage("Neptune is paid extension. Your subscription has expired." , "Buy Neptune")
+                            |> Promise.onSuccess (fun n ->
+                                if n = "Buy Neptune" then
+                                    vscode.commands.executeCommand("vscode.open", uri)
+                                    |> ignore
+                            )
+                            |> ignore
+                            Promise.lift false)
+                    (fun _ ->
+                        vscode.window.showWarningMessage("Neptune is paid extension. Your subscription has expired." , "Buy Neptune")
+                        |> Promise.onSuccess (fun n ->
+                            if n = "Buy Neptune" then
+                                vscode.commands.executeCommand("vscode.open", uri)
+                                |> ignore
+                        )
+                        |> ignore
+                        Promise.lift false)
+            else
+                authorizeKey context key
+                Promise.lift true
+        | None ->
+            authorizeKey context key
+            |> Promise.either
+                (fun data ->
+                    let ds = DateTime.Parse data
+                    if DateTime.Now <= ds.AddDays(1.) then
+                        Promise.lift true
+                    else
+                        vscode.window.showWarningMessage("Neptune is paid extension. Your subscription has expired." , "Buy Neptune")
+                        |> Promise.onSuccess (fun n ->
+                            if n = "Buy Neptune" then
+                                vscode.commands.executeCommand("vscode.open", uri)
+                                |> ignore
+                        )
+                        |> ignore
+                        Promise.lift false)
+                (fun _ ->
+                    vscode.window.showWarningMessage("Neptune is paid extension. Your subscription has expired." , "Buy Neptune")
+                    |> Promise.onSuccess (fun n ->
+                        if n = "Buy Neptune" then
+                            vscode.commands.executeCommand("vscode.open", uri)
+                            |> ignore
+                    )
+                    |> ignore
+                    Promise.lift false)
     | _ ->
         let date =
             match context.globalState.get "productFirstUse" with
@@ -44,24 +119,43 @@ let checkKey (context : vscode.ExtensionContext) =
                 d
         let remaining = Math.Ceiling (date.AddDays(7.) - DateTime.Now).TotalDays
         let rd = remaining.ToString()
-        let uri = vscode.Uri.parse "http://google.com"
         if remaining > 0. then
             let msg = sprintf "Neptune is paid extension. Your free trail has started on %s, and you have %s days left." (date.ToShortDateString()) rd
-            vscode.window.showWarningMessage(msg, "Buy Neptune")
+            vscode.window.showWarningMessage(msg, "Buy Neptune", "Enter License")
             |> Promise.onSuccess (fun n ->
                 if n = "Buy Neptune" then
                     vscode.commands.executeCommand("vscode.open", uri)
                     |> ignore
+                elif n = "Enter License" then
+                    let opts = createEmpty<InputBoxOptions>
+                    opts.prompt <- Some "License Key"
+                    vscode.window.showInputBox(opts)
+                    |> Promise.onSuccess (fun n ->
+                        if JS.isDefined n then
+                            context.globalState.update("productDate", n)
+                            |> ignore
+
+                    ) |> ignore
             )
             |> ignore
             Promise.lift true
         else
             let msg = "Neptune is paid extension. Your free trail has ended."
-            vscode.window.showWarningMessage(msg, "Buy Neptune")
+            vscode.window.showWarningMessage(msg, "Buy Neptune", "Enter License")
             |> Promise.onSuccess (fun n ->
                 if n = "Buy Neptune" then
                     vscode.commands.executeCommand("vscode.open", uri)
                     |> ignore
+                elif n = "Enter License" then
+                    let opts = createEmpty<InputBoxOptions>
+                    opts.prompt <- Some "License Key"
+                    vscode.window.showInputBox(opts)
+                    |> Promise.onSuccess (fun n ->
+                        if JS.isDefined n then
+                            context.globalState.update("productDate", n)
+                            |> ignore
+
+                    ) |> ignore
             )
             |> ignore
             Promise.lift false
