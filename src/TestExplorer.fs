@@ -104,9 +104,9 @@ let mutable private display = 0
 let private getIconPath light dark =
     let plugPath =
         try
-            (VSCode.getPluginPath "Ionide.neptune")
+            (VSCode.getPluginPath "LambdaFactory.neptune")
         with
-        | _ ->  (VSCode.getPluginPath "Ionide.Neptune")
+        | _ ->  (VSCode.getPluginPath "LambdaFactory.Neptune")
 
     let p = createEmpty<TreeIconPath>
     p.dark <- Path.join(plugPath, "images", dark)
@@ -132,9 +132,9 @@ let private failedDecorationType =
     let file = "testFailed.png"
     let path =
         try
-            (VSCode.getPluginPath "Ionide.neptune") + "/images/" + file |> Uri.file
+            (VSCode.getPluginPath "LambdaFactory.neptune") + "/images/" + file |> Uri.file
         with
-        | _ ->  (VSCode.getPluginPath "Ionide.Neptune") + "/images/" + file |> Uri.file
+        | _ ->  (VSCode.getPluginPath "LambdaFactory.Neptune") + "/images/" + file |> Uri.file
     opt.gutterIconPath <- unbox path
     opt.overviewRulerLane <- Some OverviewRulerLane.Full
     opt.overviewRulerColor <- Some (U2.Case1 "rgba(224, 64, 6, 0.7)")
@@ -145,9 +145,9 @@ let private passedDecorationType =
     let file = "testPassed.png"
     let path =
         try
-            (VSCode.getPluginPath "Ionide.neptune") + "/images/" + file |> Uri.file
+            (VSCode.getPluginPath "LambdaFactory.neptune") + "/images/" + file |> Uri.file
         with
-        | _ ->  (VSCode.getPluginPath "Ionide.Neptune") + "/images/" + file |> Uri.file
+        | _ ->  (VSCode.getPluginPath "LambdaFactory.Neptune") + "/images/" + file |> Uri.file
     opt.gutterIconPath <- unbox path
     opt.overviewRulerLane <- Some OverviewRulerLane.Full
     opt.overviewRulerColor <- Some (U2.Case1 "rgba(166, 215, 133, 0.7)")
@@ -158,9 +158,9 @@ let private ignoredDecorationType =
     let file = "testIgnored.png"
     let path =
         try
-            (VSCode.getPluginPath "Ionide.neptune") + "/images/" + file |> Uri.file
+            (VSCode.getPluginPath "LambdaFactory.neptune") + "/images/" + file |> Uri.file
         with
-        | _ ->  (VSCode.getPluginPath "Ionide.Neptune") + "/images/" + file |> Uri.file
+        | _ ->  (VSCode.getPluginPath "LambdaFactory.Neptune") + "/images/" + file |> Uri.file
     opt.gutterIconPath <- unbox path
     opt.overviewRulerLane <- Some OverviewRulerLane.Full
     opt.overviewRulerColor <- Some (U2.Case1 "rgba(255, 188, 64, 0.7)")
@@ -171,9 +171,9 @@ let private notRunDecorationType =
     let file = "testNotRun.png"
     let path =
         try
-            (VSCode.getPluginPath "Ionide.neptune") + "/images/" + file |> Uri.file
+            (VSCode.getPluginPath "LambdaFactory.neptune") + "/images/" + file |> Uri.file
         with
-        | _ ->  (VSCode.getPluginPath "Ionide.Neptune") + "/images/" + file |> Uri.file
+        | _ ->  (VSCode.getPluginPath "LambdaFactory.Neptune") + "/images/" + file |> Uri.file
     opt.gutterIconPath <- unbox path
     window.createTextEditorDecorationType opt
 

@@ -135,9 +135,9 @@ let private start' serverExe (args : string list) =
 let private startServer () =
     let pluginPath =
         try
-            (VSCode.getPluginPath "Ionide.neptune")
+            (VSCode.getPluginPath "LambdaFactory.neptune")
         with
-        | _ -> (VSCode.getPluginPath "Ionide.Neptune")
+        | _ -> (VSCode.getPluginPath "LambdaFactory.Neptune")
 
     let path = pluginPath + "/bin_vstest/Neptun.VSTestAdapter.dll"
     start' "dotnet" [ path ]
