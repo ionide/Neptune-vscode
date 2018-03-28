@@ -1,4 +1,4 @@
-### 1.0.0 - 28.03.2018
+### 1.0.1 - 28.03.2018
 
 * Initial release
 * Support for NUnit, XUnit and Expecto
