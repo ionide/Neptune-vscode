@@ -42,42 +42,62 @@ let authorizeKey (context : vscode.ExtensionContext) key =
     ax.post("https://api.gumroad.com/v2/licenses/verify", args)
     |> Promise.map (fun n ->
         let res = n.data
-        let dataS = unbox<string>res?purchase?created_at
-        let data = dataS.Substring(0,10)
-        context.globalState.update("productDate", data)
-        data
+        if !!res?purchase?subscription_cancelled_at = null && !!res?purchase?subscription_failed_at = null then
+            context.globalState.update("lastTimeCheck", DateTime.Now.ToShortDateString())
+            true
+        else
+            false
     )
 
 let checkKey (context : vscode.ExtensionContext) =
     let uri = vscode.Uri.parse "https://gumroad.com/l/NeptunePlugin"
     match context.globalState.get "productKey" with
     | Some key ->
-        match context.globalState.get "productDate" with
+        match context.globalState.get "lastTimeCheck" with
         | Some s ->
             let d = DateTime.Parse s
-            let shouldCheck = DateTime.Now >= d.AddDays(1.)
+            let shouldCheck = DateTime.Now >= d.AddDays(3.)
             if shouldCheck then
                 authorizeKey context key
                 |> Promise.either
                     (fun data ->
-                        let ds = DateTime.Parse data
-                        if DateTime.Now <= ds.AddDays(1.) then
+                        if data then
                             Promise.lift true
                         else
-                            vscode.window.showWarningMessage("Neptune is paid extension. Your subscription has expired." , "Buy Neptune")
+                            vscode.window.showWarningMessage("Neptune is paid extension. Your subscription has expired." , "Buy Neptune", "Enter License")
                             |> Promise.onSuccess (fun n ->
                                 if n = "Buy Neptune" then
                                     vscode.commands.executeCommand("vscode.open", uri)
                                     |> ignore
+                                elif n = "Enter License" then
+                                    let opts = createEmpty<InputBoxOptions>
+                                    opts.prompt <- Some "License Key"
+                                    vscode.window.showInputBox(opts)
+                                    |> Promise.onSuccess (fun n ->
+                                        if JS.isDefined n then
+                                            context.globalState.update("productKey", n)
+                                            |> ignore
+
+                                    ) |> ignore
                             )
                             |> ignore
                             Promise.lift false)
                     (fun _ ->
-                        vscode.window.showWarningMessage("Neptune is paid extension. Your subscription has expired." , "Buy Neptune")
+                        vscode.window.showWarningMessage("Neptune is paid extension. Your subscription has expired." , "Buy Neptune", "Enter License")
                         |> Promise.onSuccess (fun n ->
                             if n = "Buy Neptune" then
                                 vscode.commands.executeCommand("vscode.open", uri)
                                 |> ignore
+                            elif n = "Enter License" then
+                                let opts = createEmpty<InputBoxOptions>
+                                opts.prompt <- Some "License Key"
+                                vscode.window.showInputBox(opts)
+                                |> Promise.onSuccess (fun n ->
+                                    if JS.isDefined n then
+                                        context.globalState.update("productKey", n)
+                                        |> ignore
+
+                                ) |> ignore
                         )
                         |> ignore
                         Promise.lift false)
@@ -88,8 +108,7 @@ let checkKey (context : vscode.ExtensionContext) =
             authorizeKey context key
             |> Promise.either
                 (fun data ->
-                    let ds = DateTime.Parse data
-                    if DateTime.Now <= ds.AddDays(1.) then
+                    if data then
                         Promise.lift true
                     else
                         vscode.window.showWarningMessage("Neptune is paid extension. Your subscription has expired." , "Buy Neptune")
@@ -101,7 +120,7 @@ let checkKey (context : vscode.ExtensionContext) =
                         |> ignore
                         Promise.lift false)
                 (fun _ ->
-                    vscode.window.showWarningMessage("Neptune is paid extension. Your subscription has expired." , "Buy Neptune")
+                    vscode.window.showWarningMessage("Neptune is paid extension. Your subscription has expired" , "Buy Neptune")
                     |> Promise.onSuccess (fun n ->
                         if n = "Buy Neptune" then
                             vscode.commands.executeCommand("vscode.open", uri)
@@ -132,7 +151,7 @@ let checkKey (context : vscode.ExtensionContext) =
                     vscode.window.showInputBox(opts)
                     |> Promise.onSuccess (fun n ->
                         if JS.isDefined n then
-                            context.globalState.update("productDate", n)
+                            context.globalState.update("productKey", n)
                             |> ignore
 
                     ) |> ignore
@@ -152,7 +171,7 @@ let checkKey (context : vscode.ExtensionContext) =
                     vscode.window.showInputBox(opts)
                     |> Promise.onSuccess (fun n ->
                         if JS.isDefined n then
-                            context.globalState.update("productDate", n)
+                            context.globalState.update("productKey", n)
                             |> ignore
 
                     ) |> ignore
@@ -166,7 +185,6 @@ let activate (context : vscode.ExtensionContext) =
     let df = createEmpty<DocumentFilter>
     df.language <- Some "fsharp"
     let df' : DocumentSelector = df |> U3.Case2
-
     notifyTelemetry context |> ignore
     checkKey context
     |> Promise.onSuccess (fun n ->
