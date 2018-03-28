@@ -4,7 +4,7 @@ Visual Studio Code extension adding first class support for F# unit testing for 
 
 **Neptune is paid extension, license can be bought on [product webpage](https://gumroad.com/l/NeptunePlugin). Downloading plugin from VSCode Extensions Marketplace you agree on our [License](LICENSE.md) and have access to 7 days, free evaluation period.**
 
-![](Img/Screenshot%20from%202018-03-27%2000.32.40.png)
+![Neptune](Img/Screenshot%20from%202018-03-27%2000.32.40.png)
 
 ## Requirements
 
@@ -23,19 +23,19 @@ Visual Studio Code extension adding first class support for F# unit testing for 
 
 #### Test explorer integrated with VSCode UI
 
-![](Img/Screenshot%20from%202018-03-27%2000.26.58.png)
+![Test Explorer](Img/Screenshot%20from%202018-03-27%2000.26.58.png)
 
 #### Debugging support (.Net Core only)
 
-![](Img/Screenshot%20from%202018-03-27%2014.35.14.png)
+![Debugging](Img/Screenshot%20from%202018-03-27%2014.35.14.png)
 
 #### CodeLenses for running and debugging single test or test list
 
-![](Img/Screenshot%20from%202018-03-27%2000.41.55.png)
+![CodeLenses](Img/Screenshot%20from%202018-03-27%2000.41.55.png)
 
 #### Showing test failures in VSCode error panel and editor ruler.
 
-![](Img/Screenshot%20from%202018-03-27%2000.48.44.png)
+![Diagnostics](Img/Screenshot%20from%202018-03-27%2000.48.44.png)
 
 ## Support matrix
 
