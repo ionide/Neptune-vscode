@@ -1,3 +1,8 @@
-### 0.0.1 - 26.11.2017
+### 1.0.0 - 28.03.2018
 
-* Getting started
+* Initial release
+* Support for NUnit, XUnit and Expecto
+* Support for .Net Framework and .Net Core
+* Tree Explorer
+* Integration with VSCode decorations and error panel
+* CodeLenses for running and debugging tests
