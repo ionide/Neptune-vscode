@@ -139,7 +139,7 @@ let checkKey (context : vscode.ExtensionContext) =
         let remaining = Math.Ceiling (date.AddDays(7.) - DateTime.Now).TotalDays
         let rd = remaining.ToString()
         if remaining > 0. then
-            let msg = sprintf "Neptune is paid extension. Your free trail has started on %s, and you have %s days left." (date.ToShortDateString()) rd
+            let msg = sprintf "Neptune is paid extension. Your free trial has started on %s, and you have %s days left." (date.ToShortDateString()) rd
             vscode.window.showWarningMessage(msg, "Buy Neptune", "Enter License")
             |> Promise.onSuccess (fun n ->
                 if n = "Buy Neptune" then
@@ -159,7 +159,7 @@ let checkKey (context : vscode.ExtensionContext) =
             |> ignore
             Promise.lift true
         else
-            let msg = "Neptune is paid extension. Your free trail has ended."
+            let msg = "Neptune is paid extension. Your free trial has ended."
             vscode.window.showWarningMessage(msg, "Buy Neptune", "Enter License")
             |> Promise.onSuccess (fun n ->
                 if n = "Buy Neptune" then
