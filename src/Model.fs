@@ -56,11 +56,13 @@ type TestEntry = {
 type ParseRequest = {
     FileName: string
     Content: string
+    Type: string
 }
 
 type ProjectRequest = {
     FileName: string
     Files: string []
+    Type: string
 }
 
 type ParseResponse = {

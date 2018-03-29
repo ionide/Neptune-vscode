@@ -30,13 +30,31 @@ let detector =
             state.Values
             |> Seq.tryFind (fun pr -> pr.Files |> List.contains path)
 
-        member __.GetTestsForFile doc =
+        member this.GetTestsForFile doc =
             let txt = doc.getText()
-            let request = {ParseRequest.Content = txt; FileName = doc.fileName }
+            let pr = this.GetProjectForFile doc.fileName
+
+            let typ =
+                match pr with
+                | Some pr ->
+                    if pr.References |> List.exists (fun r -> r.EndsWith "Expecto.dll" ) then "Expecto"
+                    elif pr.References |> List.exists (fun r -> r.EndsWith "nunit.framework.dll") then "NUnit"
+                    elif pr.References |> List.exists (fun r -> r.EndsWith "xunit.assert.dll") then "XUnit"
+                    else ""
+                | None -> ""
+
+            let request = {ParseRequest.Content = txt; FileName = doc.fileName; Type = typ }
             LanguageService.parseRequest request
 
         member __.GetTestsForProject pr =
-            let request = {ProjectRequest.FileName = pr.Project; Files = List.toArray pr.Files }
+            let typ =
+                if pr.References |> List.exists (fun r -> r.EndsWith "Expecto.dll" ) then "Expecto"
+                elif pr.References |> List.exists (fun r -> r.EndsWith "nunit.framework.dll") then "NUnit"
+                elif pr.References |> List.exists (fun r -> r.EndsWith "xunit.assert.dll") then "XUnit"
+                else ""
+
+
+            let request = {ProjectRequest.FileName = pr.Project; Files = List.toArray pr.Files; ProjectRequest.Type = typ }
             LanguageService.projectRequest request
             |> Promise.map (fun n -> n.Data)
 

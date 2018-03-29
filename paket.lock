@@ -30,7 +30,7 @@ NUGET
     Fable.Import.Node (0.1.5)
       Fable.Core (>= 1.1.15) - restriction: >= netstandard1.6
       FSharp.Core (>= 4.2.3) - restriction: >= netstandard1.6
-    FSharp.Compiler.Service (22.0.1) - restriction: >= netcoreapp2.0
+    FSharp.Compiler.Service (22.0.3) - restriction: >= netcoreapp2.0
       FSharp.Core (>= 4.1.18) - restriction: || (>= net45) (>= netstandard2.0)
       Microsoft.DiaSymReader (>= 1.1) - restriction: || (>= net45) (>= netstandard2.0)
       Microsoft.DiaSymReader.PortablePdb (>= 1.2) - restriction: || (>= net45) (>= netstandard2.0)
@@ -623,10 +623,10 @@ GITHUB
     src/Helpers.fs (771740b1b8be6479841e44804e311f42646d5345)
 GIT
   remote: https://github.com/Krzysztof-Cieslak/Neptune.git
-     (6416136293b4a6319b83caae1379afee083d1939)
+     (11bef49d9d9cb141a8eae04d110b5936da4676cc)
       build: build.cmd Publish
       os: windows
-     (6416136293b4a6319b83caae1379afee083d1939)
+     (11bef49d9d9cb141a8eae04d110b5936da4676cc)
       build: build.sh Publish
       os: mono
   remote: https://github.com/Krzysztof-Cieslak/Neptune-vstest.git
