@@ -1,3 +1,6 @@
+### 1.0.6 - 29.03.2018
+* Make sure tests are not detected multiple times by different detectors.
+
 ### 1.0.5 - 29.03.2018
 * Fix problem with running XUnit test for Full Framework, old style projects.
 
