@@ -1,3 +1,6 @@
+### 1.0.5 - 29.03.2018
+* Fix problem with running XUnit test for Full Framework, old style projects.
+
 ### 1.0.2 - 28.03.2018
 
 * Initial release
