@@ -15,8 +15,6 @@ open Fake.YarnHelper
 
 Target "Clean" (fun _ ->
     CleanDir "./temp"
-    CopyFiles "release" ["README.md"]
-    CopyFile "release/CHANGELOG.md" "RELEASE_NOTES.md"
 )
 
 Target "YarnInstall" <| fun () ->
