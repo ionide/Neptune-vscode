@@ -225,22 +225,29 @@ let getNUnitResults () =
             "alwaysArray" ==> true
         ]
     let rec collectTestCases o =
+
         let current = if !!o?``test-case`` <> Utils.undefined then unbox<obj[]>(o?``test-case``) else [||]
+        let results = if !!o?``results`` <> Utils.undefined then unbox<obj[]>(o?``results``) else [||]
         let testSuites = if !!o?``test-suite`` <> Utils.undefined then unbox<obj[]>(o?``test-suite``) else [||]
-        Array.append current (testSuites |> Array.collect collectTestCases)
+        let suites = Array.append results testSuites
+        Array.append current (suites |> Array.collect collectTestCases)
 
     let res = convert?xml2js(xmlCnt, opts)
-    let res = unbox<obj[]>(res?``test-run``).[0]
+    let res =
+        try
+            unbox<obj[]>(res?``test-run``).[0]
+        with
+        | _ -> unbox<obj[]>(res?``test-results``).[0]
     collectTestCases res
 
 let nUnitOldResultToTestResult obj =
-    let name = !!obj?_attributes?fullname
-    let timer = !!obj?_attributes?duration
+    let name = if !!obj?_attributes?fullname <> undefined then !!obj?_attributes?fullname else !!obj?_attributes?name
+    let timer = if !!obj?_attributes?duration <> undefined then !!obj?_attributes?duration else !!obj?_attributes?time
     let result = !!obj?_attributes?result
     let state =
         match result with
-        | "Passed" -> TestState.Passed
-        | "Failed" | "Inconclusive" -> TestState.Failed
+        | "Passed" | "Success" -> TestState.Passed
+        | "Failed" | "Failure" | "Inconclusive" -> TestState.Failed
         | "Skipped" -> TestState.Ignored
         | _ -> TestState.NotRun
     let error =
@@ -255,14 +262,16 @@ let nUnitOldResultToTestResult obj =
 let log = createConfiguredLoggers "NEPTUNE" "Neptune (F# - Classic Runners Adapter)"
 
 let runAllTestsWithOldRunner (proj: Project) initial =
+
     match findOldRunner proj with
     | None -> Promise.lift initial
     | Some (isNUnit, runner) ->
         let args =
             if isNUnit then "\"" + proj.Output + "\""
             else
+                let p = Path.join(workspace.rootPath, "TestResult.xml")
                 "\"" + proj.Output + "\""
-                + " -nunit"
+                + " -nunit " + p
         Process.spawn runner "mono" args
         |> Process.onOutput (fun buffer ->
             let outputString = buffer.toString()
