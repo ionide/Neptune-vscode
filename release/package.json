@@ -23,7 +23,7 @@
     "vscode": "^0.10.10"
   },
   "categories": [
-    "Languages",
+    "Programming Languages",
     "Other"
   ],
   "activationEvents": [
@@ -60,7 +60,8 @@
     "outputChannels": [
       "Neptune (F# - Detector Service)",
       "Neptune (F# - VSTest Adapter)",
-      "Neptune (F# - Classic Runners Adapter)"
+      "Neptune (F# - Classic Runners Adapter)",
+      "Neptune (F# - Expecto Adapter)"
     ],
     "commands": [
       {

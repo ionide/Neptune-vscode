@@ -8,7 +8,7 @@ open Ionide.VSCode.Helpers
 open System.Text.RegularExpressions
 
 let private lastOutput = Collections.Generic.Dictionary<string,string>()
-let private outputChannel = Fable.Import.vscode.window.createOutputChannel "Expecto"
+let private outputChannel = Fable.Import.vscode.window.createOutputChannel "Neptune (F# - Expecto Adapter)"
 
 let private trySkip count seq =
     let mutable index = 0
@@ -104,12 +104,14 @@ let getErrors () =
                     else
                         None
                     )
+                |> Seq.toArray
             errors
             |> Seq.map (fun (id, name) ->
                 let error =
                     output
                     |> Seq.skip (id + 1)
-                    |> Seq.takeWhile (String.IsNullOrWhiteSpace >> not)
+                    |> Seq.takeWhile (fun n -> not (String.IsNullOrWhiteSpace n || n.StartsWith "[") )
+                    |> Seq.toArray
                 let error =
                     error
                     |> Seq.take ((error |> Seq.length) - 1)
