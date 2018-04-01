@@ -143,6 +143,9 @@ let runExpectoProject (api : Api) project args =
                 childProcess
                 |> Process.onOutput (fun out -> lastOutput.[exe] <- lastOutput.[exe] + out.toString () )
                 |> Process.toPromise
+                |> Promise.map (fun n ->
+                    string (defaultArg n.Code 0)
+                )
         }
 
 
