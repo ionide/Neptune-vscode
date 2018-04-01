@@ -1,3 +1,6 @@
+### 1.0.7 - 01.04.2018
+* Add support for FsCheck attributes
+
 ### 1.0.6 - 29.03.2018
 * Make sure tests are not detected multiple times by different detectors.
 
