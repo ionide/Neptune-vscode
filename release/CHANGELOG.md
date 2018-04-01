@@ -1,3 +1,9 @@
+### 1.0.8 - 01.04.2018
+* Expecto test detection - don't treat `failtest` and `skiptest` helpers as a functions
+* Expecto test detection - add support for `test` CE test cases
+* Create outnput channel for Expecto
+* Fix bug in error message aggregation for Expecto runner
+
 ### 1.0.7 - 01.04.2018
 * Add support for FsCheck attributes
 
