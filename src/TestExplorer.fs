@@ -21,11 +21,12 @@ type private TreeModel = {
     mutable State: TestState
     mutable Timer: string
     mutable ErrorMessage: string
-    Childs: TreeModel []
+    mutable Childs: TreeModel []
     List: bool
     Id : int
     Type : string
     mutable HasMultipleCases: bool
+    IsSubCase: bool
 }
 
 let private emptyModel = {
@@ -41,6 +42,7 @@ let private emptyModel = {
     Id = -1
     Type = ""
     HasMultipleCases = false
+    IsSubCase = false
 }
 
 let private runnerRegister = Dictionary<string, ITestRunner>()
@@ -102,6 +104,7 @@ let rec private ofTestEntry fileName state prefix (oldTests: TreeModel list)  (i
         Id = input.Id
         Type = if input.Type = "NUnit" || input.Type = "XUnit" then "VSTest" else input.Type //TODO: Hack
         HasMultipleCases = false
+        IsSubCase = false
     }
 let mutable private display = 0
 
@@ -129,7 +132,7 @@ let private flattedTests () =
 
 let private getTests state =
     flattedTests ()
-    |> List.filter (fun n -> n.State = state && not n.List)
+    |> List.filter (fun n -> n.State = state && not n.List && not n.IsSubCase)
 
 let private failedDecorationType =
     let opt = createEmpty<DecorationRenderOptions>
@@ -318,6 +321,28 @@ let private handleTestResults (results: TestResult list) =
                         |> Array.map (fun t -> t.ErrorMessage)
                         |> String.concat "\n---\n"
                     tst.HasMultipleCases <- true
+                    let chlds =
+                        tests
+                        |> Array.map (fun n ->
+                            let name =
+                                let m = Regex.Match(n.FullName, "(.*)<.*>(\(.*\))")
+                                tst.Name + " " + m.Groups.[2].Value
+                            {
+                                Name = name
+                                FullName = n.FullName
+                                FileName = tst.FileName
+                                ErrorMessage = n.ErrorMessage
+                                Childs = [||]
+                                List = false
+                                Id = tst.Id + 3000000
+                                Type = tst.Type
+                                HasMultipleCases = false
+                                Range = tst.Range
+                                State = n.State
+                                Timer = n.Timer
+                                IsSubCase = true
+                            })
+                    tst.Childs <- chlds
                     //TODO: Add test cases
                 else
                     let t = tests.[0]
@@ -376,7 +401,7 @@ let private createTreeProvider () : TreeDataProvider<TreeModel> =
             let ti = createEmpty<TreeItem>
             ti.label <- node.Name + (if node.Timer <> "" then sprintf " (%s)" node.Timer else "")
             ti.collapsibleState <-
-                if node.List then
+                if node.List || node.HasMultipleCases then
                     Some TreeItemCollapsibleState.Expanded
                 else
                     None
@@ -423,7 +448,7 @@ let private createCodeLensesProvider () =
     { new CodeLensProvider with
         member __.provideCodeLenses(doc, _) =
             flattedTests ()
-            |> Seq.where (fun t -> t.FileName = doc.fileName)
+            |> Seq.where (fun t -> t.FileName = doc.fileName && not t.IsSubCase)
             |> Seq.collect (fun t ->
                 let runner = runnerRegister.[t.Type]
                 let detector = detectorRegister.[doc.languageId]
