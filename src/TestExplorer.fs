@@ -11,6 +11,7 @@ open Ionide.VSCode.Helpers
 open System.Collections.Generic
 open Utils
 open Model
+open System.Text.RegularExpressions
 
 type private TreeModel = {
     Name: string
@@ -24,6 +25,7 @@ type private TreeModel = {
     List: bool
     Id : int
     Type : string
+    mutable HasMultipleCases: bool
 }
 
 let private emptyModel = {
@@ -38,6 +40,7 @@ let private emptyModel = {
     List = false
     Id = -1
     Type = ""
+    HasMultipleCases = false
 }
 
 let private runnerRegister = Dictionary<string, ITestRunner>()
@@ -98,6 +101,7 @@ let rec private ofTestEntry fileName state prefix (oldTests: TreeModel list)  (i
         List = input.List
         Id = input.Id
         Type = if input.Type = "NUnit" || input.Type = "XUnit" then "VSTest" else input.Type //TODO: Hack
+        HasMultipleCases = false
     }
 let mutable private display = 0
 
@@ -259,31 +263,68 @@ let parseProject (project : Project) =
 let private handleTestResults (results: TestResult list) =
     let tsts = flattedTests ()
     results
-    |> Seq.iter (fun n ->
-        let name = n.FullName.Trim( '"', ' ', '\\', '/')
+    |> Seq.toArray
+    |> Array.groupBy (fun testFromResults ->
+        let name = testFromResults.FullName.Trim( '"', ' ', '\\', '/')
         let name =
-            if n.Runner = "VSTest" then
+            if testFromResults.Runner = "VSTest" then
                name.Replace('/', '.').Replace('\\', '.').Replace('+', '.')
             else
                 name
-        match tsts |> Seq.where (fun t ->
-            let tName = t.FullName.Trim( '"', ' ', '\\', '/')
-            let tName =
-                if n.Runner = "VSTest" then
-                    tName.Replace('/', '.').Replace('\\', '.')
-                else
-                    tName
-            match n.FileName with
-            | None -> tName = name
-            | Some fn ->
-                tName = name && fn = t.FileName ) |> Seq.toArray with
+
+        if testFromResults.Runner = "VSTest" then
+            let m = Regex.Match(name, "(.*)<.*>(\(.*\))")
+            if m.Success then
+                m.Groups.[1].Value
+            else
+                name
+        else
+            name
+    )
+    |> Array.iter (fun (name,tests) ->
+        let foundTests =
+            tsts
+            |> Seq.where (fun testFromList ->
+                let t = tests |> Seq.head
+
+                let tName = testFromList.FullName.Trim( '"', ' ', '\\', '/')
+                let tName =
+                    if t.Runner = "VSTest" then
+                        tName.Replace('/', '.').Replace('\\', '.')
+                    else
+                        tName
+                match t.FileName with
+                | None -> tName = name
+                | Some fn ->
+                    tName = name && fn = testFromList.FileName ) |> Seq.toArray
+
+        match foundTests with
         | [||] -> ()
         | xs ->
             xs
             |> Array.iter (fun tst ->
-                tst.State <- n.State
-                tst.Timer <- n.Timer
-                tst.ErrorMessage <- n.ErrorMessage
+                if tests.Length > 1 then
+                    let state =
+                        if tests |> Array.exists (fun t -> t.State = TestState.Failed) then TestState.Failed
+                        elif tests |> Array.exists (fun t -> t.State = TestState.Ignored) then TestState.Ignored
+                        elif tests |> Array.exists (fun t -> t.State = TestState.NotRun) then TestState.NotRun
+                        else TestState.Passed
+
+                    tst.State <- state
+                    tst.Timer <- ""
+                    tst.ErrorMessage <-
+                        tests
+                        |> Array.where  (fun t -> t.State = TestState.Failed)
+                        |> Array.map (fun t -> t.ErrorMessage)
+                        |> String.concat "\n---\n"
+                    tst.HasMultipleCases <- true
+                    //TODO: Add test cases
+                else
+                    let t = tests.[0]
+                    tst.State <- t.State
+                    tst.Timer <- t.Timer
+                    tst.ErrorMessage <- t.ErrorMessage
+                    tst.HasMultipleCases <- false
             )
     )
     refresh.fire undefined
