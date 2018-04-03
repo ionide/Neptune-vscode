@@ -78,7 +78,6 @@ let rec private ofTestEntry fileName state prefix (oldTests: TreeModel list)  (i
             o.EndColumn = i.EndColumn
         else false
 
-
     let state =
         match oldTests |> List.tryFind (fun o -> rangeEquals o.Range input.Range || (o.FullName = fullname && o.FileName = fileName)  ) with
         | Some o -> o.State
@@ -91,6 +90,15 @@ let rec private ofTestEntry fileName state prefix (oldTests: TreeModel list)  (i
         match oldTests |> List.tryFind (fun o -> rangeEquals o.Range input.Range || (o.FullName = fullname && o.FileName = fileName)  ) with
         | Some o -> o.ErrorMessage
         | None -> ""
+    let childs =
+        match oldTests |> List.tryFind (fun o -> rangeEquals o.Range input.Range || (o.FullName = fullname && o.FileName = fileName)  ) with
+        | Some o -> if o.HasMultipleCases then o.Childs else input.Childs |> Array.map (ofTestEntry fileName state fullname oldTests)
+        | None -> input.Childs |> Array.map (ofTestEntry fileName state fullname oldTests)
+    let hasMultipleCases =
+        match oldTests |> List.tryFind (fun o -> rangeEquals o.Range input.Range || (o.FullName = fullname && o.FileName = fileName)  ) with
+        | Some o -> o.HasMultipleCases
+        | None -> false
+
     {
         Name = input.Name
         FullName = fullname
@@ -99,11 +107,11 @@ let rec private ofTestEntry fileName state prefix (oldTests: TreeModel list)  (i
         State = state
         Timer = timer
         ErrorMessage = error
-        Childs = input.Childs |> Array.map (ofTestEntry fileName state fullname oldTests)
+        Childs = childs
         List = input.List
         Id = input.Id
         Type = if input.Type = "NUnit" || input.Type = "XUnit" then "VSTest" else input.Type //TODO: Hack
-        HasMultipleCases = false
+        HasMultipleCases = hasMultipleCases
         IsSubCase = false
     }
 let mutable private display = 0
@@ -129,6 +137,7 @@ let private flattedTests () =
     |> Seq.collect snd
     |> Seq.toList
     |> List.collect flatten
+    |> List.filter (fun n -> not n.IsSubCase)
 
 let private getTests state =
     flattedTests ()
@@ -188,25 +197,25 @@ let private notRunDecorationType =
 let private setDecorations () =
     let failed fn =
         getTests TestState.Failed
-        |> List.filter (fun n -> n.FileName = fn && n.Childs.Length = 0)
+        |> List.filter (fun n -> n.FileName = fn && not n.List)
         |> List.map (fun n -> Range.ToCodeRange n.Range)
         |> ResizeArray
 
     let passed fn =
         getTests TestState.Passed
-        |> List.filter (fun n -> n.FileName = fn && n.Childs.Length = 0)
+        |> List.filter (fun n -> n.FileName = fn && not n.List)
         |> List.map (fun n -> Range.ToCodeRange n.Range )
         |> ResizeArray
 
     let ignored fn =
         getTests TestState.Ignored
-        |> List.filter (fun n -> n.FileName = fn && n.Childs.Length = 0)
+        |> List.filter (fun n -> n.FileName = fn && not n.List)
         |> List.map (fun n -> Range.ToCodeRange n.Range )
         |> ResizeArray
 
     let notRun fn =
         getTests TestState.NotRun
-        |> List.filter (fun n -> n.FileName = fn && n.Childs.Length = 0)
+        |> List.filter (fun n -> n.FileName = fn && not n.List)
         |> List.map (fun n -> Range.ToCodeRange n.Range)
         |> ResizeArray
 
@@ -343,7 +352,6 @@ let private handleTestResults (results: TestResult list) =
                                 IsSubCase = true
                             })
                     tst.Childs <- chlds
-                    //TODO: Add test cases
                 else
                     let t = tests.[0]
                     tst.State <- t.State
@@ -428,6 +436,8 @@ let private createTreeProvider () : TreeDataProvider<TreeModel> =
                     let x = if (runner.Capabilities project |> List.contains CanRunList) then x + "Run" else x
                     let x = if (runner.Capabilities project |> List.contains CanDebugList) then x + "Debug" else x
                     Some x
+                elif node.IsSubCase then
+                    None
                 else
                     let x = "neptune.testExplorer.test"
                     let x = if (runner.Capabilities project |> List.contains CanRunSingle) then x + "Run" else x
