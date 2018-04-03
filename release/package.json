@@ -65,6 +65,11 @@
     ],
     "commands": [
       {
+        "command": "neptune.testExplorer.goTo",
+        "category": "Tests",
+        "title": "Go to test"
+      },
+      {
         "command": "neptune.runList",
         "category": "Tests",
         "title": "Run Tests"

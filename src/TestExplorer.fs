@@ -545,16 +545,36 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
     workspace.onDidSaveTextDocument.Invoke(fun te -> parseTextDocumentSave te |> unbox) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.testExplorer.goTo", Func<obj, obj>(fun n ->
-        reporter.sendTelemetryEvent "GoTo" undefined undefined
-        let entry = unbox<TreeModel> n
-        let line = entry.Range.StartLine - 1
-        let uri = Uri.file entry.FileName
-        workspace.openTextDocument(uri)
-        |> Promise.map (fun td ->
-            window.showTextDocument td
-            |> Promise.map (fun te ->
-                te.revealRange (Range(float line, 0., float line, 0.), TextEditorRevealType.InCenter)))
+        let entry =
+            if JS.isDefined n then
+                reporter.sendTelemetryEvent "GoTo" undefined undefined
+                Promise.lift <| unbox<TreeModel> n
+            else
+                reporter.sendTelemetryEvent "GoTo/Palette" undefined undefined
+                let tests =
+                    flattedTests ()
+                    |> Seq.map (fun n ->
+                        let qpi = createEmpty<QuickPickItem>
+                        qpi.label <- n.Name
+                        qpi?data <- n
+                        qpi
+                    )
+                    |> ResizeArray
+
+                window.showQuickPick(U2.Case1 tests)
+                |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
+        entry
+        |> Promise.map(fun entry ->
+            let line = entry.Range.StartLine - 1
+            let uri = Uri.file entry.FileName
+            workspace.openTextDocument(uri)
+            |> Promise.map (fun td ->
+                window.showTextDocument td
+                |> Promise.map (fun te ->
+                    te.revealRange (Range(float line, 0., float line, 0.), TextEditorRevealType.InCenter)))
+        )
         |> unbox
+
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.runList", Func<obj, obj>(fun m ->
