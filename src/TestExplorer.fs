@@ -388,6 +388,12 @@ let private createTreeProvider () : TreeDataProvider<TreeModel> =
                 elif display = 1 && (node.Name = "Passed" || node.Name = "Ignored" || node.Name = "Failed" || node.Name = "Not Run") then
                     node.Childs
                     |> ResizeArray
+                elif display = 1 && node.HasMultipleCases then
+                    node.Childs
+                    |> ResizeArray
+                elif display = 2 then
+                    node.Childs
+                    |> ResizeArray
                 else
                     [] |> ResizeArray
             else
@@ -396,7 +402,8 @@ let private createTreeProvider () : TreeDataProvider<TreeModel> =
                     |> Seq.map (|KeyValue|)
                     |> Seq.collect snd
                     |> ResizeArray
-                else
+
+                elif display = 1 then
                     [
                         {emptyModel with Name = "Passed"; Childs = getTests TestState.Passed |> Array.ofList; List = true }
                         {emptyModel with Name = "Failed"; Childs = getTests TestState.Failed |> Array.ofList; List = true }
@@ -404,6 +411,30 @@ let private createTreeProvider () : TreeDataProvider<TreeModel> =
                         {emptyModel with Name = "Not Run"; Childs = getTests TestState.NotRun |> Array.ofList; List = true }
                     ]
                     |> ResizeArray
+                else
+                    detectorRegister.Values
+                    |> Seq.collect (fun n -> n.GetProjectList () )
+                    |> Seq.map(fun proj ->
+                        let childs =
+                            proj.Files
+                            |> Seq.choose (fun n ->
+                                match tests.TryGetValue(n) with
+                                | true, models -> Some (n,models)
+                                | _ -> None
+                            )
+                            |> Seq.map (fun (name, tests) ->
+                                let name = Path.basename name
+                                {emptyModel with Name = name; List = true; Childs = tests}
+                            )
+                            |> Seq.toArray
+                        let name = Path.basename proj.Project
+                        { emptyModel with Name = name; List = true; Childs = childs}
+
+
+                    )
+                    |> ResizeArray
+
+
 
         member __.getTreeItem(node) =
             let ti = createEmpty<TreeItem>
@@ -829,7 +860,7 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
 
     commands.registerCommand("neptune.changeDisplayMode", Func<obj, obj>(fun _ ->
         reporter.sendTelemetryEvent "ChangeDisplayMode" undefined undefined
-        if display = 0 then display <- 1 else display <- 0
+        if display = 2 then display <- 0 else display <- display + 1
         refresh.fire undefined
         |> unbox
     )) |> context.subscriptions.Add
