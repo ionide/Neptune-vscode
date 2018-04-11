@@ -27,6 +27,8 @@ type private TreeModel = {
     Type : string
     mutable HasMultipleCases: bool
     IsSubCase: bool
+    IsProject: bool
+    IsFile: bool
 }
 
 let private emptyModel = {
@@ -43,6 +45,8 @@ let private emptyModel = {
     Type = ""
     HasMultipleCases = false
     IsSubCase = false
+    IsProject = false
+    IsFile = false
 }
 
 let private runnerRegister = Dictionary<string, ITestRunner>()
@@ -113,6 +117,8 @@ let rec private ofTestEntry fileName state prefix (oldTests: TreeModel list)  (i
         Type = if input.Type = "NUnit" || input.Type = "XUnit" then "VSTest" else input.Type //TODO: Hack
         HasMultipleCases = hasMultipleCases
         IsSubCase = false
+        IsProject = false
+        IsFile = false
     }
 let mutable private display = 0
 
@@ -350,6 +356,8 @@ let private handleTestResults (results: TestResult list) =
                                 State = n.State
                                 Timer = n.Timer
                                 IsSubCase = true
+                                IsProject = false
+                                IsFile = false
                             })
                     tst.Childs <- chlds
                 else
@@ -412,8 +420,7 @@ let private createTreeProvider () : TreeDataProvider<TreeModel> =
                     ]
                     |> ResizeArray
                 else
-                    detectorRegister.Values
-                    |> Seq.collect (fun n -> n.GetProjectList () )
+                    getProjectList ()
                     |> Seq.map(fun proj ->
                         let childs =
                             proj.Files
@@ -423,14 +430,12 @@ let private createTreeProvider () : TreeDataProvider<TreeModel> =
                                 | _ -> None
                             )
                             |> Seq.map (fun (name, tests) ->
-                                let name = Path.basename name
-                                {emptyModel with Name = name; List = true; Childs = tests}
+                                let n = Path.basename name
+                                {emptyModel with Name = n; List = true; Childs = tests; FileName = name; IsFile = true; Type = tests.[0].Type }
                             )
                             |> Seq.toArray
                         let name = Path.basename proj.Project
-                        { emptyModel with Name = name; List = true; Childs = childs}
-
-
+                        { emptyModel with Name = name; List = true; Childs = childs; FileName = proj.Project; IsProject = true; Type = childs.[0].Type}
                     )
                     |> ResizeArray
 
@@ -459,21 +464,36 @@ let private createTreeProvider () : TreeDataProvider<TreeModel> =
 
             ti.contextValue <-
                 let runner = runnerRegister.[node.Type]
-                match getProjectForFile node.FileName with
-                | None -> None
+                let p = getProjectForFile node.FileName
+                let p = if JS.isDefined p then p else None // ????????
+                match p with
+                | None ->
+                    if node.IsProject then
+                        let project = getProjectList () |> List.find (fun p -> p.Project = node.FileName)
+                        let x = "neptune.testExplorer.project"
+                        let x = if (runner.Capabilities project |> List.contains CanRunList) then x + "Run" else x
+                        let x = if (runner.Capabilities project |> List.contains CanDebugList) then x + "Debug" else x
+                        Some x
+                    else
+                        None
                 | Some project ->
-                if node.List then
-                    let x = "neptune.testExplorer.group"
-                    let x = if (runner.Capabilities project |> List.contains CanRunList) then x + "Run" else x
-                    let x = if (runner.Capabilities project |> List.contains CanDebugList) then x + "Debug" else x
-                    Some x
-                elif node.IsSubCase then
-                    None
-                else
-                    let x = "neptune.testExplorer.test"
-                    let x = if (runner.Capabilities project |> List.contains CanRunSingle) then x + "Run" else x
-                    let x = if (runner.Capabilities project |> List.contains CanDebugSingle) then x + "Debug" else x
-                    Some x
+                    if node.IsFile then
+                        let x = "neptune.testExplorer.file"
+                        let x = if (runner.Capabilities project |> List.contains CanRunList) then x + "Run" else x
+                        let x = if (runner.Capabilities project |> List.contains CanDebugList) then x + "Debug" else x
+                        Some x
+                    elif node.List then
+                        let x = "neptune.testExplorer.group"
+                        let x = if (runner.Capabilities project |> List.contains CanRunList) then x + "Run" else x
+                        let x = if (runner.Capabilities project |> List.contains CanDebugList) then x + "Debug" else x
+                        Some x
+                    elif node.IsSubCase then
+                        None
+                    else
+                        let x = "neptune.testExplorer.test"
+                        let x = if (runner.Capabilities project |> List.contains CanRunSingle) then x + "Run" else x
+                        let x = if (runner.Capabilities project |> List.contains CanDebugSingle) then x + "Debug" else x
+                        Some x
 
 
             let c = createEmpty<Command>
@@ -878,6 +898,130 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
         )
     )) |> context.subscriptions.Add
 
+    commands.registerCommand("neptune.runProject", Func<obj, obj>(fun m ->
+        withProgress (fun msgHandler ->
+            let m =
+                if JS.isDefined m then
+                    reporter.sendTelemetryEvent "RunProject/Activate" undefined undefined
+                    Promise.lift <| unbox<TreeModel> m
+                else
+                    reporter.sendTelemetryEvent "RunProject/Activate/Palette" undefined undefined
+                    let tests =
+                        flattedTests ()
+                        |> Seq.filter (fun n -> not n.List)
+                        |> Seq.map (fun n ->
+                            let qpi = createEmpty<QuickPickItem>
+                            qpi.label <- n.Name
+                            qpi?data <- n
+                            qpi
+                        )
+                        |> ResizeArray
+                    window.showQuickPick(U2.Case1 tests)
+                    |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
+            m
+            |> Promise.bind (fun m ->
+                let proj =
+                    getProjectList ()
+                    |> List.tryFind (fun n -> n.Project = m.FileName)
+                match proj with
+                | None -> Promise.lift []
+                | Some proj ->
+
+                let tests =
+                    flattedTests ()
+                    |> Seq.filter (fun t ->
+                        match getProjectForFile t.FileName with
+                        | None -> false
+                        | Some p -> p.Project = proj.Project )
+                    |> Seq.map (fun test -> test.FullName.Trim( '"', ' ', '\\', '/'))
+                    |> Seq.toList
+
+                let projectsWithTests = [ (proj, tests)]
+
+                msgHandler |> report startingMsg
+                runnerRegister.Values
+                |> Promise.collect (fun r ->
+                    let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
+                    match prjsWithTsts with
+                    | [] -> Promise.lift []
+                    | xs ->  r.RunTests msgHandler xs
+                )
+                |> Promise.onSuccess (fun n ->
+                    msgHandler |> report completedMsg
+                    handleTestResults n
+                )
+                |> Promise.onFail (fun n ->
+                    msgHandler |> report failedRunMsg
+                    window.showErrorMessage (sprintf "Running test failed - %O" n)
+                    |> ignore
+                    ()
+                )
+            )
+        )
+    )) |> context.subscriptions.Add
+
+    commands.registerCommand("neptune.debugProject", Func<obj, obj>(fun m ->
+        withProgress (fun msgHandler ->
+            let m =
+                if JS.isDefined m then
+                    reporter.sendTelemetryEvent "DebugProject/Activate" undefined undefined
+                    Promise.lift <| unbox<TreeModel> m
+                else
+                    reporter.sendTelemetryEvent "DebugProject/Activate/Palette" undefined undefined
+                    let tests =
+                        flattedTests ()
+                        |> Seq.filter (fun n -> not n.List)
+                        |> Seq.map (fun n ->
+                            let qpi = createEmpty<QuickPickItem>
+                            qpi.label <- n.Name
+                            qpi?data <- n
+                            qpi
+                        )
+                        |> ResizeArray
+                    window.showQuickPick(U2.Case1 tests)
+                    |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
+            m
+            |> Promise.bind (fun m ->
+                let proj =
+                    getProjectList ()
+                    |> List.tryFind (fun n -> n.Project = m.FileName)
+                match proj with
+                | None -> Promise.lift []
+                | Some proj ->
+
+                let tests =
+                    flattedTests ()
+                    |> Seq.filter (fun t ->
+                        match getProjectForFile t.FileName with
+                        | None -> false
+                        | Some p -> p.Project = proj.Project )
+                    |> Seq.map (fun test -> test.FullName.Trim( '"', ' ', '\\', '/'))
+                    |> Seq.toList
+
+                let projectsWithTests = [ (proj, tests)]
+
+                msgHandler |> report startingMsg
+                runnerRegister.Values
+                |> Promise.collect (fun r ->
+                    let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
+                    match prjsWithTsts with
+                    | [] -> Promise.lift []
+                    | xs ->  r.DebugTests msgHandler xs
+                )
+                |> Promise.onSuccess (fun n ->
+                    msgHandler |> report completedMsg
+                    handleTestResults n
+                )
+                |> Promise.onFail (fun n ->
+                    msgHandler |> report failedRunMsg
+                    window.showErrorMessage (sprintf "Running test failed - %O" n)
+                    |> ignore
+                    ()
+                )
+            )
+        )
+    )) |> context.subscriptions.Add
+
     commands.registerCommand("neptune.changeDisplayMode", Func<obj, obj>(fun _ ->
         reporter.sendTelemetryEvent "ChangeDisplayMode" undefined undefined
         if display = 2 then display <- 0 else display <- display + 1
@@ -896,4 +1040,3 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
 
     window.onDidChangeVisibleTextEditors.Invoke(unbox setDecorations)
     |> context.subscriptions.Add
-

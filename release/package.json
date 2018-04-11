@@ -80,6 +80,11 @@
         "title": "Run Test"
       },
       {
+        "command": "neptune.runProject",
+        "category": "Tests",
+        "title": "Run Project"
+      },
+      {
         "command": "neptune.debugList",
         "category": "Tests",
         "title": "Debug Tests"
@@ -88,6 +93,11 @@
         "command": "neptune.debugTest",
         "category": "Tests",
         "title": "Debug Test"
+      },
+      {
+        "command": "neptune.debugProject",
+        "category": "Tests",
+        "title": "Debug Project"
       },
       {
         "command": "neptune.debugAll",
@@ -162,6 +172,16 @@
           "group": "actions@1"
         },
         {
+          "command": "neptune.runProject",
+          "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.projectRun",
+          "group": "actions@1"
+        },
+        {
+          "command": "neptune.runProject",
+          "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.projectRunDebug",
+          "group": "actions@1"
+        },
+        {
           "command": "neptune.runTest",
           "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.testRun",
           "group": "actions@1"
@@ -179,6 +199,16 @@
         {
           "command": "neptune.debugList",
           "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.groupRunDebug",
+          "group": "actions@2"
+        },
+        {
+          "command": "neptune.debugProject",
+          "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.projectDebug",
+          "group": "actions@2"
+        },
+        {
+          "command": "neptune.debugProject",
+          "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.projectRunDebug",
           "group": "actions@2"
         },
         {
