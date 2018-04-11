@@ -1,4 +1,4 @@
-### 1.1.0 - 11.04.2018
+### 1.1.1 - 11.04.2018
 * Add support for NUnit's TestSource
 * Add `Go to test` command to command palette
 * Add display mode that uses also projects and files
