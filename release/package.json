@@ -2,7 +2,7 @@
   "name": "neptune",
   "displayName": "Neptune",
   "publisher": "LambdaFactory",
-  "version": "1.0.8",
+  "version": "1.1.0",
   "preview": true,
   "license": "SEE LICENSE IN LICENSE.md",
   "description": "Visual Studio Code extension adding first class support for F# unit testing for both .Net Framework and .Net Core.",

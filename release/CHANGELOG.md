@@ -1,3 +1,9 @@
+### 1.1.0 - 11.04.2018
+* Add support for NUnit's TestSource
+* Add `Go to test` command to command palette
+* Add display mode that uses also projects and files
+* Add commands to run tests in particular project or file
+
 ### 1.0.8 - 01.04.2018
 * Expecto test detection - don't treat `failtest` and `skiptest` helpers as a functions
 * Expecto test detection - add support for `test` CE test cases
