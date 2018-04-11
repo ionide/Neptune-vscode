@@ -85,6 +85,11 @@
         "title": "Run Project"
       },
       {
+        "command": "neptune.runFile",
+        "category": "Tests",
+        "title": "Run File"
+      },
+      {
         "command": "neptune.debugList",
         "category": "Tests",
         "title": "Debug Tests"
@@ -98,6 +103,11 @@
         "command": "neptune.debugProject",
         "category": "Tests",
         "title": "Debug Project"
+      },
+      {
+        "command": "neptune.debugFile",
+        "category": "Tests",
+        "title": "Debug File"
       },
       {
         "command": "neptune.debugAll",
@@ -141,6 +151,24 @@
       ]
     },
     "menus": {
+      "commandPalette": [
+        {
+          "command": "neptune.runProject",
+          "when": "false"
+        },
+        {
+          "command": "neptune.debugProject",
+          "when": "false"
+        },
+        {
+          "command": "neptune.runFile",
+          "when": "false"
+        },
+        {
+          "command": "neptune.debugFile",
+          "when": "false"
+        }
+      ],
       "view/title": [
         {
           "command": "neptune.runAll",
@@ -182,6 +210,16 @@
           "group": "actions@1"
         },
         {
+          "command": "neptune.runFile",
+          "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.fileRun",
+          "group": "actions@1"
+        },
+        {
+          "command": "neptune.runFile",
+          "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.fileRunDebug",
+          "group": "actions@1"
+        },
+        {
           "command": "neptune.runTest",
           "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.testRun",
           "group": "actions@1"
@@ -209,6 +247,16 @@
         {
           "command": "neptune.debugProject",
           "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.projectRunDebug",
+          "group": "actions@2"
+        },
+        {
+          "command": "neptune.debugFile",
+          "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.fileDebug",
+          "group": "actions@2"
+        },
+        {
+          "command": "neptune.debugFile",
+          "when": "view == neptune.testExplorer && viewItem == neptune.testExplorer.fileRunDebug",
           "group": "actions@2"
         },
         {

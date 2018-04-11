@@ -900,124 +900,168 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
 
     commands.registerCommand("neptune.runProject", Func<obj, obj>(fun m ->
         withProgress (fun msgHandler ->
-            let m =
-                if JS.isDefined m then
-                    reporter.sendTelemetryEvent "RunProject/Activate" undefined undefined
-                    Promise.lift <| unbox<TreeModel> m
-                else
-                    reporter.sendTelemetryEvent "RunProject/Activate/Palette" undefined undefined
-                    let tests =
-                        flattedTests ()
-                        |> Seq.filter (fun n -> not n.List)
-                        |> Seq.map (fun n ->
-                            let qpi = createEmpty<QuickPickItem>
-                            qpi.label <- n.Name
-                            qpi?data <- n
-                            qpi
-                        )
-                        |> ResizeArray
-                    window.showQuickPick(U2.Case1 tests)
-                    |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
-            m
-            |> Promise.bind (fun m ->
-                let proj =
-                    getProjectList ()
-                    |> List.tryFind (fun n -> n.Project = m.FileName)
-                match proj with
-                | None -> Promise.lift []
-                | Some proj ->
+            reporter.sendTelemetryEvent "RunProject/Activate" undefined undefined
+            let m = unbox<TreeModel> m
 
-                let tests =
-                    flattedTests ()
-                    |> Seq.filter (fun t ->
-                        match getProjectForFile t.FileName with
-                        | None -> false
-                        | Some p -> p.Project = proj.Project )
-                    |> Seq.map (fun test -> test.FullName.Trim( '"', ' ', '\\', '/'))
-                    |> Seq.toList
+            let proj =
+                getProjectList ()
+                |> List.tryFind (fun n -> n.Project = m.FileName)
+            match proj with
+            | None -> Promise.lift []
+            | Some proj ->
 
-                let projectsWithTests = [ (proj, tests)]
+            let tests =
+                flattedTests ()
+                |> Seq.filter (fun t ->
+                    match getProjectForFile t.FileName with
+                    | None -> false
+                    | Some p -> p.Project = proj.Project )
+                |> Seq.map (fun test -> test.FullName.Trim( '"', ' ', '\\', '/'))
+                |> Seq.toList
 
-                msgHandler |> report startingMsg
-                runnerRegister.Values
-                |> Promise.collect (fun r ->
-                    let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
-                    match prjsWithTsts with
-                    | [] -> Promise.lift []
-                    | xs ->  r.RunTests msgHandler xs
-                )
-                |> Promise.onSuccess (fun n ->
-                    msgHandler |> report completedMsg
-                    handleTestResults n
-                )
-                |> Promise.onFail (fun n ->
-                    msgHandler |> report failedRunMsg
-                    window.showErrorMessage (sprintf "Running test failed - %O" n)
-                    |> ignore
-                    ()
-                )
+            let projectsWithTests = [ (proj, tests)]
+
+            msgHandler |> report startingMsg
+            runnerRegister.Values
+            |> Promise.collect (fun r ->
+                let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
+                match prjsWithTsts with
+                | [] -> Promise.lift []
+                | xs ->  r.RunTests msgHandler xs
+            )
+            |> Promise.onSuccess (fun n ->
+                msgHandler |> report completedMsg
+                handleTestResults n
+            )
+            |> Promise.onFail (fun n ->
+                msgHandler |> report failedRunMsg
+                window.showErrorMessage (sprintf "Running test failed - %O" n)
+                |> ignore
+                ()
             )
         )
     )) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.debugProject", Func<obj, obj>(fun m ->
         withProgress (fun msgHandler ->
-            let m =
-                if JS.isDefined m then
-                    reporter.sendTelemetryEvent "DebugProject/Activate" undefined undefined
-                    Promise.lift <| unbox<TreeModel> m
-                else
-                    reporter.sendTelemetryEvent "DebugProject/Activate/Palette" undefined undefined
-                    let tests =
-                        flattedTests ()
-                        |> Seq.filter (fun n -> not n.List)
-                        |> Seq.map (fun n ->
-                            let qpi = createEmpty<QuickPickItem>
-                            qpi.label <- n.Name
-                            qpi?data <- n
-                            qpi
-                        )
-                        |> ResizeArray
-                    window.showQuickPick(U2.Case1 tests)
-                    |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
-            m
-            |> Promise.bind (fun m ->
-                let proj =
-                    getProjectList ()
-                    |> List.tryFind (fun n -> n.Project = m.FileName)
-                match proj with
-                | None -> Promise.lift []
-                | Some proj ->
+            reporter.sendTelemetryEvent "DebugProject/Activate" undefined undefined
+            let m = unbox<TreeModel> m
+            let proj =
+                getProjectList ()
+                |> List.tryFind (fun n -> n.Project = m.FileName)
+            match proj with
+            | None -> Promise.lift []
+            | Some proj ->
 
-                let tests =
-                    flattedTests ()
-                    |> Seq.filter (fun t ->
-                        match getProjectForFile t.FileName with
-                        | None -> false
-                        | Some p -> p.Project = proj.Project )
-                    |> Seq.map (fun test -> test.FullName.Trim( '"', ' ', '\\', '/'))
-                    |> Seq.toList
+            let tests =
+                flattedTests ()
+                |> Seq.filter (fun t ->
+                    match getProjectForFile t.FileName with
+                    | None -> false
+                    | Some p -> p.Project = proj.Project )
+                |> Seq.map (fun test -> test.FullName.Trim( '"', ' ', '\\', '/'))
+                |> Seq.toList
 
-                let projectsWithTests = [ (proj, tests)]
+            let projectsWithTests = [ (proj, tests)]
 
-                msgHandler |> report startingMsg
-                runnerRegister.Values
-                |> Promise.collect (fun r ->
-                    let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
-                    match prjsWithTsts with
-                    | [] -> Promise.lift []
-                    | xs ->  r.DebugTests msgHandler xs
-                )
-                |> Promise.onSuccess (fun n ->
-                    msgHandler |> report completedMsg
-                    handleTestResults n
-                )
-                |> Promise.onFail (fun n ->
-                    msgHandler |> report failedRunMsg
-                    window.showErrorMessage (sprintf "Running test failed - %O" n)
-                    |> ignore
-                    ()
-                )
+            msgHandler |> report startingMsg
+            runnerRegister.Values
+            |> Promise.collect (fun r ->
+                let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
+                match prjsWithTsts with
+                | [] -> Promise.lift []
+                | xs ->  r.DebugTests msgHandler xs
+            )
+            |> Promise.onSuccess (fun n ->
+                msgHandler |> report completedMsg
+                handleTestResults n
+            )
+            |> Promise.onFail (fun n ->
+                msgHandler |> report failedRunMsg
+                window.showErrorMessage (sprintf "Running test failed - %O" n)
+                |> ignore
+                ()
+            )
+
+        )
+    )) |> context.subscriptions.Add
+
+    commands.registerCommand("neptune.runFile", Func<obj, obj>(fun m ->
+        withProgress (fun msgHandler ->
+            reporter.sendTelemetryEvent "RunFile/Activate" undefined undefined
+            let m = unbox<TreeModel> m
+
+            let proj = getProjectForFile m.FileName
+
+            match proj with
+            | None -> Promise.lift []
+            | Some proj ->
+
+            let tests =
+                flattedTests ()
+                |> Seq.filter (fun t -> t.FileName = m.FileName)
+                |> Seq.map (fun test -> test.FullName.Trim( '"', ' ', '\\', '/'))
+                |> Seq.toList
+
+            let projectsWithTests = [ (proj, tests)]
+
+            msgHandler |> report startingMsg
+            runnerRegister.Values
+            |> Promise.collect (fun r ->
+                let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
+                match prjsWithTsts with
+                | [] -> Promise.lift []
+                | xs ->  r.RunTests msgHandler xs
+            )
+            |> Promise.onSuccess (fun n ->
+                msgHandler |> report completedMsg
+                handleTestResults n
+            )
+            |> Promise.onFail (fun n ->
+                msgHandler |> report failedRunMsg
+                window.showErrorMessage (sprintf "Running test failed - %O" n)
+                |> ignore
+                ()
+            )
+        )
+    )) |> context.subscriptions.Add
+
+    commands.registerCommand("neptune.debugFile", Func<obj, obj>(fun m ->
+        withProgress (fun msgHandler ->
+            reporter.sendTelemetryEvent "DebugFile/Activate" undefined undefined
+            let m = unbox<TreeModel> m
+
+            let proj = getProjectForFile m.FileName
+
+            match proj with
+            | None -> Promise.lift []
+            | Some proj ->
+
+            let tests =
+                flattedTests ()
+                |> Seq.filter (fun t -> t.FileName = m.FileName)
+                |> Seq.map (fun test -> test.FullName.Trim( '"', ' ', '\\', '/'))
+                |> Seq.toList
+
+            let projectsWithTests = [ (proj, tests)]
+
+            msgHandler |> report startingMsg
+            runnerRegister.Values
+            |> Promise.collect (fun r ->
+                let prjsWithTsts = projectsWithTests |> List.filter (fun (p,_) -> r.ShouldProjectBeRun p)
+                match prjsWithTsts with
+                | [] -> Promise.lift []
+                | xs ->  r.RunTests msgHandler xs
+            )
+            |> Promise.onSuccess (fun n ->
+                msgHandler |> report completedMsg
+                handleTestResults n
+            )
+            |> Promise.onFail (fun n ->
+                msgHandler |> report failedRunMsg
+                window.showErrorMessage (sprintf "Running test failed - %O" n)
+                |> ignore
+                ()
             )
         )
     )) |> context.subscriptions.Add
