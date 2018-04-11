@@ -57,7 +57,8 @@ let private diagnostcs = languages.createDiagnosticCollection()
 let private getProjectList () =
     detectorRegister.Values
     |> Seq.collect (fun dt ->
-        dt.GetProjectList () )
+        dt.GetProjectList ()
+        |> Seq.where (dt.ShouldHandleProject))
     |> Seq.toList
 
 let private getProjectForFile (fn : SourceFilePath) =
@@ -421,7 +422,7 @@ let private createTreeProvider () : TreeDataProvider<TreeModel> =
                     |> ResizeArray
                 else
                     getProjectList ()
-                    |> Seq.map(fun proj ->
+                    |> Seq.choose(fun proj ->
                         let childs =
                             proj.Files
                             |> Seq.choose (fun n ->
@@ -429,13 +430,18 @@ let private createTreeProvider () : TreeDataProvider<TreeModel> =
                                 | true, models -> Some (n,models)
                                 | _ -> None
                             )
+                            |> Seq.where (fun (_, tests) -> tests |> Seq.isEmpty |> not)
                             |> Seq.map (fun (name, tests) ->
                                 let n = Path.basename name
                                 {emptyModel with Name = n; List = true; Childs = tests; FileName = name; IsFile = true; Type = tests.[0].Type }
                             )
                             |> Seq.toArray
                         let name = Path.basename proj.Project
-                        { emptyModel with Name = name; List = true; Childs = childs; FileName = proj.Project; IsProject = true; Type = childs.[0].Type}
+
+                        if childs.Length > 0 then
+                            Some { emptyModel with Name = name; List = true; Childs = childs; FileName = proj.Project; IsProject = true; Type = childs.[0].Type}
+                        else
+                            None
                     )
                     |> ResizeArray
 
