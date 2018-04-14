@@ -67,7 +67,11 @@
       {
         "command": "neptune.testExplorer.goTo",
         "category": "Tests",
-        "title": "Go to test"
+        "title": "Go to test",
+        "icon": {
+          "light": "./images/search-light.svg",
+          "dark": "./images/search-dark.svg"
+        }
       },
       {
         "command": "neptune.runList",
@@ -183,8 +187,13 @@
           "alt": "neptune.debugFailed"
         },
         {
-          "command": "neptune.changeDisplayMode",
+          "command": "neptune.testExplorer.goTo",
           "group": "navigation@3",
+          "when": "view == neptune.testExplorer"
+        },
+        {
+          "command": "neptune.changeDisplayMode",
+          "group": "navigation@4",
           "when": "view == neptune.testExplorer"
         }
       ],
