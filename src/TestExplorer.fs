@@ -294,13 +294,13 @@ let private handleTestResults (results: TestResult list) =
         if testFromResults.Runner = "VSTest" then
             let m = Regex.Match(name, "(.*)(<.*>)?(\(.*\))")
             if m.Success then
-                m.Groups.[1].Value
+                name,m.Groups.[1].Value
             else
-                name
+                name,name
         else
-            name
+            name, name
     )
-    |> Array.iter (fun (name,tests) ->
+    |> Array.iter (fun ((n, name),tests) ->
         let foundTests =
             tsts
             |> Seq.where (fun testFromList ->
@@ -313,9 +313,9 @@ let private handleTestResults (results: TestResult list) =
                     else
                         tName
                 match t.FileName with
-                | None -> tName = name
+                | None -> tName = name || tName = n
                 | Some fn ->
-                    tName = name && fn = testFromList.FileName ) |> Seq.toArray
+                    (tName = name || tName = n) && fn = testFromList.FileName ) |> Seq.toArray
 
         match foundTests with
         | [||] -> ()
