@@ -451,7 +451,7 @@ let private createTreeProvider () : TreeDataProvider<TreeModel> =
 
         member __.getTreeItem(node) =
             let ti = createEmpty<TreeItem>
-            ti.label <- node.Name + (if node.Timer <> "" then sprintf " (%s)" node.Timer else "")
+            ti.label <- node.Name + (if node.Timer <> "" then sprintf " (%s)" (node.Timer.TrimEnd '0') else "")
             ti.collapsibleState <-
                 if node.List || node.HasMultipleCases then
                     Some TreeItemCollapsibleState.Expanded
