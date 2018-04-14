@@ -292,7 +292,7 @@ let private handleTestResults (results: TestResult list) =
                 name
 
         if testFromResults.Runner = "VSTest" then
-            let m = Regex.Match(name, "(.*)<.*>(\(.*\))")
+            let m = Regex.Match(name, "(.*)(<.*>)?(\(.*\))")
             if m.Success then
                 m.Groups.[1].Value
             else
@@ -341,8 +341,10 @@ let private handleTestResults (results: TestResult list) =
                         tests
                         |> Array.map (fun n ->
                             let name =
-                                let m = Regex.Match(n.FullName, "(.*)<.*>(\(.*\))")
-                                tst.Name + " " + m.Groups.[2].Value
+                                let m = Regex.Match(n.FullName, "(.*)(<.*>)?(\(.*\))")
+                                let v = if JS.isDefined m.Groups.[2] then m.Groups.[2].Value else m.Groups.[1].Value
+
+                                tst.Name + " " + v
                             {
                                 Name = name
                                 FullName = n.FullName

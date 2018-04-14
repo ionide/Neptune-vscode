@@ -581,7 +581,7 @@ let createRunner (api : Api) =
                                     n
                                     |> Array.filter (fun (n, _) ->
                                         let n = n.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.')
-                                        names |> List.contains n
+                                        (names |> List.contains n) || (names |> List.exists (fun a -> n.StartsWith (a + "(") && n.EndsWith ")" ))
                                     )
                                     |> Array.map snd
 
@@ -776,7 +776,7 @@ let createRunner (api : Api) =
                             n
                             |> Array.filter (fun (n, _) ->
                                 let n = n.Trim( '"', ' ', '\\', '/').Replace('/', '.').Replace('\\', '.')
-                                names |> List.contains n
+                                (names |> List.contains n) || (names |> List.exists (fun a -> n.StartsWith (a + "(") && n.EndsWith ")" ))
                             )
                             |> Array.map snd
 
