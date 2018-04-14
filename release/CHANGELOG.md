@@ -1,7 +1,8 @@
-### 1.1.2 - 14.04.2018
+### 1.1.3 - 14.04.2018
 * Fix test reporting for NUnit's TestSource
 * Add icon for `Go to test` command
 * Fix test reporting for NUnit/XUnit tests ending with `(Some text)`
+* Remove trailing 0s from the timer in the tree view
 
 ### 1.1.1 - 11.04.2018
 * Add support for NUnit's TestSource
