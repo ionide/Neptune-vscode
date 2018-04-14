@@ -294,13 +294,13 @@ let private handleTestResults (results: TestResult list) =
         if testFromResults.Runner = "VSTest" then
             let m = Regex.Match(name, "(.*)(<.*>)?(\(.*\))")
             if m.Success then
-                name,m.Groups.[1].Value
+                m.Groups.[1].Value
             else
-                name,name
+                name
         else
-            name, name
+            name
     )
-    |> Array.iter (fun ((n, name),tests) ->
+    |> Array.iter (fun (name,tests) ->
         let foundTests =
             tsts
             |> Seq.where (fun testFromList ->
@@ -313,9 +313,9 @@ let private handleTestResults (results: TestResult list) =
                     else
                         tName
                 match t.FileName with
-                | None -> tName = name || tName = n
+                | None -> tName = name || (tName.StartsWith  (name + "(") && tName.EndsWith ")")
                 | Some fn ->
-                    (tName = name || tName = n) && fn = testFromList.FileName ) |> Seq.toArray
+                    (tName = name || (tName.StartsWith  (name + "(") && tName.EndsWith ")")) && fn = testFromList.FileName ) |> Seq.toArray
 
         match foundTests with
         | [||] -> ()
@@ -342,7 +342,7 @@ let private handleTestResults (results: TestResult list) =
                         |> Array.map (fun n ->
                             let name =
                                 let m = Regex.Match(n.FullName, "(.*)(<.*>)?(\(.*\))")
-                                let v = if JS.isDefined m.Groups.[2] then m.Groups.[2].Value else m.Groups.[1].Value
+                                let v = if JS.isDefined m.Groups.[3] then m.Groups.[3].Value else m.Groups.[2].Value
 
                                 tst.Name + " " + v
                             {
