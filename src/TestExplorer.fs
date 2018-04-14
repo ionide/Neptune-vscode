@@ -593,13 +593,15 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
                 |> Promise.map (fun n -> n?data |> unbox<TreeModel>)
         entry
         |> Promise.map(fun entry ->
-            let line = entry.Range.StartLine - 1
-            let uri = Uri.file entry.FileName
-            workspace.openTextDocument(uri)
-            |> Promise.map (fun td ->
-                window.showTextDocument td
-                |> Promise.map (fun te ->
-                    te.revealRange (Range(float line, 0., float line, 0.), TextEditorRevealType.InCenter)))
+            if JS.isDefined entry then
+                let line = entry.Range.StartLine - 1
+                let uri = Uri.file entry.FileName
+                workspace.openTextDocument(uri)
+                |> Promise.map (fun td ->
+                    window.showTextDocument td
+                    |> Promise.map (fun te ->
+                        te.revealRange (Range(float line, 0., float line, 0.), TextEditorRevealType.InCenter)))
+                |> ignore
         )
         |> unbox
 
