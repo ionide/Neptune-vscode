@@ -146,7 +146,7 @@
       }
     ],
     "views": {
-      "explorer": [
+      "test": [
         {
           "id": "neptune.testExplorer",
           "name": "Test Explorer",
