@@ -9,11 +9,7 @@ open Fable.Core
 open Fable.Import.vscode
 open Fable.Import.Node
 open Utils
-open Fable.Import.Node.ChildProcess
-open Ionide.VSCode.Helpers
-open Ionide.VSCode.Helpers
 open Fable.Import
-open System
 
 
 type [<Pojo>] RequestLaunch =
@@ -52,6 +48,24 @@ let buildProjs api projs =
     |> Promise.bind (fun code ->
         if code = "1" then Promise.reject "Build failed"
         else Promise.lift ""
+    )
+    |> Promise.onSuccess(fun _ ->
+        projs
+        |> List.iter (fun n ->
+            let name = Path.basename(n.Project)
+            let targPath = Path.join(Path.dirname n.Project, "obj", name + ".neptune.targets")
+            Fs.unlinkSync(!!targPath)
+            ()
+        )
+    )
+    |> Promise.onFail(fun _ ->
+        projs
+        |> List.iter (fun n ->
+            let name = Path.basename(n.Project)
+            let targPath = Path.join(Path.dirname n.Project, "obj", name + ".neptune.targets")
+            Fs.unlinkSync(!!targPath)
+            ()
+        )
     )
 
 let getXml (projs : Project[]) =
@@ -847,7 +861,7 @@ let createRunner (api : Api) =
                                 lines
                                 |> Array.map (fun l ->
                                     let o = o.Item l
-                                    (f, l, o)
+                                    (f, l, o?Hits)
                                 )
                             )
                         )
