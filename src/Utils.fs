@@ -67,6 +67,16 @@ module NodeUtil =
     [<Import("*", "util")>]
     let Util: IExports = jsNative
 
+[<AutoOpen>]
+module Object =
+    open System
+    open Fable.Core
+
+
+    type Object with
+        [<Emit("$0[$1]")>]
+        member __.Item n : obj = jsNative
+
 module Promise =
     open Ionide.VSCode.Helpers
 

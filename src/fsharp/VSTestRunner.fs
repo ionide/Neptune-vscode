@@ -9,6 +9,12 @@ open Fable.Core
 open Fable.Import.vscode
 open Fable.Import.Node
 open Utils
+open Fable.Import.Node.ChildProcess
+open Ionide.VSCode.Helpers
+open Ionide.VSCode.Helpers
+open Fable.Import
+open System
+
 
 type [<Pojo>] RequestLaunch =
     { name: string
@@ -25,7 +31,20 @@ let mutable storagePath = ""
 
 let convert =  Globals.require.Invoke "xml-js" |> unbox<obj>
 
+
+
+
 let buildProjs api projs =
+    projs
+    |> List.iter (fun n ->
+        let name = Path.basename(n.Project)
+        let targPath = Path.join(Path.dirname n.Project, "obj", name + ".neptune.targets")
+        let content = targetFileContent (Path.join(pluginPath, "bin_coverlet"))
+        Fs.writeFileSync(targPath, content)
+
+        ()
+    )
+
     projs
     |> List.fold (fun p proj ->  p |> Promise.bind (fun code ->
         if code = "1" then Promise.reject "Build failed"
@@ -792,6 +811,52 @@ let createRunner (api : Api) =
                     |> Promise.map (Array.toList)
                 )
             )
+
+        member __.GenerateCoverage proj =
+            let generatorPath = Path.join(pluginPath, "bin_coverlet", "coverlet.generator.dll")
+            let instrPath = Path.join(Path.dirname proj.Output, "Instr.json")
+            let args = sprintf "\"%s\" \"%s\"" generatorPath instrPath
+            Process.exec "dotnet" "" args
+            |> Promise.map(fun _ ->
+                let coverPath = Path.join(Path.dirname proj.Output, "CovResult.json")
+                let content = Fs.readFileSync(coverPath).toString()
+                let json = JS.JSON.parse content
+                let libs = !!JS.Object.keys(json)
+
+                libs
+                |> Array.collect (fun n ->
+                    let o = json.Item n
+
+                    let files = !!JS.Object.keys(o)
+
+                    files
+                    |> Array.collect (fun f ->
+                        let o = o.Item f
+                        let modules = !!JS.Object.keys(o)
+
+                        modules
+                        |> Array.collect (fun m ->
+                            let o = o.Item m
+                            let funcs = !!JS.Object.keys(o)
+
+                            funcs
+                            |> Array.collect (fun fn ->
+                                let o = o.Item fn
+                                let lines = !!JS.Object.keys(o)
+
+                                lines
+                                |> Array.map (fun l ->
+                                    let o = o.Item l
+                                    (f, l, o)
+                                )
+                            )
+                        )
+
+                    ) )
+
+            )
+            |> Promise.map (!!)
+
         member __.Capabilities proj =
             match proj.Info with
             | ProjectResponseInfo.DotnetSdk z when z.TargetFrameworkIdentifier = ".NETFramework" ->

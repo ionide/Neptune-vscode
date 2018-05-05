@@ -122,6 +122,7 @@ type ITestRunner =
     abstract member DebugAll: Progress<ProgressMessage> -> Project list -> JS.Promise<TestResult list>
     abstract member DebugTests: Progress<ProgressMessage> -> (Project * string list) list -> JS.Promise<TestResult list>
     abstract member DebugList: Progress<ProgressMessage> -> (Project * string) -> JS.Promise<TestResult list>
+    abstract member GenerateCoverage : Project -> JS.Promise<(string * string * int) list>
     abstract member Capabilities: Project -> Capability list
 
 type ITestDetector =

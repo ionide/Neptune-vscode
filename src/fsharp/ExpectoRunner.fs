@@ -300,6 +300,8 @@ let createRunner (api : Api) =
             )
             |> Promise.map (fun _ -> [])
 
+        member __.GenerateCoverage proj = null
+
         member __.Capabilities proj =
             match proj.Info with
             | ProjectResponseInfo.DotnetSdk z when z.TargetFrameworkIdentifier = ".NETFramework" ->

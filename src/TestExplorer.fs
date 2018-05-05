@@ -200,6 +200,27 @@ let private notRunDecorationType =
     opt.gutterIconPath <- unbox path
     window.createTextEditorDecorationType opt
 
+let private coverDecorationType =
+    let opt = createEmpty<DecorationRenderOptions>
+    let file = "gutter-green.svg"
+    let path =
+        try
+            (VSCode.getPluginPath "LambdaFactory.neptune") + "/images/" + file |> Uri.file
+        with
+        | _ ->  (VSCode.getPluginPath "LambdaFactory.Neptune") + "/images/" + file |> Uri.file
+    opt.gutterIconPath <- unbox path
+    window.createTextEditorDecorationType opt
+
+let private uncoverDecorationType =
+    let opt = createEmpty<DecorationRenderOptions>
+    let file = "gutter-red.svg"
+    let path =
+        try
+            (VSCode.getPluginPath "LambdaFactory.neptune") + "/images/" + file |> Uri.file
+        with
+        | _ ->  (VSCode.getPluginPath "LambdaFactory.Neptune") + "/images/" + file |> Uri.file
+    opt.gutterIconPath <- unbox path
+    window.createTextEditorDecorationType opt
 
 let private setDecorations () =
     let failed fn =
@@ -384,6 +405,27 @@ let private handleTestResults (results: TestResult list) =
         Uri.file fn, diags )
     |> ResizeArray
     |> diagnostcs.set
+
+let private handlerCover (input: (string * string * int) list) =
+    window.visibleTextEditors
+    |> Seq.iter (fun te ->
+        match te.document with
+        | Document.FSharp ->
+            let cover =
+                input
+                |> Seq.where (fun (f, _, h) -> te.document.fileName = f && h <> 0)
+                |> Seq.map (fun (_,l,_) -> Range(float l - 1. ,0., float l - 1.,0.))
+                |> ResizeArray
+            let uncover =
+                input
+                |> Seq.where (fun (f, _, h) -> te.document.fileName = f && h = 0)
+                |> Seq.map (fun (_,l,_) -> Range(float l - 1.,0., float l - 1.,0.))
+                |> ResizeArray
+            te.setDecorations(coverDecorationType, !!cover)
+            te.setDecorations(uncoverDecorationType, !!uncover)
+        | _ ->
+            ()
+    )
 
 let private createTreeProvider () : TreeDataProvider<TreeModel> =
     { new TreeDataProvider<TreeModel>
@@ -643,6 +685,13 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
                         msgHandler |> report completedMsg
                         handleTestResults n
                     )
+                    |> Promise.onSuccess (fun _ ->
+                        runnerRegister.Values
+                        |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
+                        |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                        |> Promise.onSuccess(handlerCover)
+                        |> ignore
+                    )
                     |> Promise.onFail (fun n ->
                         msgHandler |> report failedRunMsg
                         window.showErrorMessage (sprintf "Running test failed - %O" n)
@@ -687,6 +736,13 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
                     |> Promise.onSuccess (fun n ->
                         msgHandler |> report completedMsg
                         handleTestResults n
+                    )
+                    |> Promise.onSuccess (fun _ ->
+                        runnerRegister.Values
+                        |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
+                        |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                        |> Promise.onSuccess(handlerCover)
+                        |> ignore
                     )
                     |> Promise.onFail (fun n ->
                         msgHandler |> report failedRunMsg
@@ -736,6 +792,13 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
                         msgHandler |> report completedMsg
                         handleTestResults n
                     )
+                    |> Promise.onSuccess (fun _ ->
+                        runnerRegister.Values
+                        |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
+                        |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                        |> Promise.onSuccess(handlerCover)
+                        |> ignore
+                    )
                     |> Promise.onFail (fun n ->
                         msgHandler |> report failedRunMsg
                         window.showErrorMessage (sprintf "Running test failed - %O" n)
@@ -784,6 +847,13 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
                         msgHandler |> report completedMsg
                         handleTestResults n
                     )
+                    |> Promise.onSuccess (fun _ ->
+                        runnerRegister.Values
+                        |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
+                        |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                        |> Promise.onSuccess(handlerCover)
+                        |> ignore
+                    )
                     |> Promise.onFail (fun n ->
                         msgHandler |> report failedRunMsg
                         window.showErrorMessage (sprintf "Running test failed - %O" n)
@@ -811,6 +881,16 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
                 msgHandler |> report completedMsg
                 handleTestResults n
             )
+            |> Promise.onSuccess (fun _ ->
+                projects
+                |> Seq.iter (fun prj ->
+                    runnerRegister.Values
+                    |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
+                    |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                    |> Promise.onSuccess(handlerCover)
+                    |> ignore
+                )
+            )
             |> Promise.onFail (fun n ->
                 msgHandler |> report failedRunMsg
                 window.showErrorMessage (sprintf "Running test failed - %O" n)
@@ -835,6 +915,16 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
             |> Promise.onSuccess (fun n ->
                 msgHandler |> report completedMsg
                 handleTestResults n
+            )
+            |> Promise.onSuccess (fun _ ->
+                projects
+                |> Seq.iter (fun prj ->
+                    runnerRegister.Values
+                    |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
+                    |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                    |> Promise.onSuccess(handlerCover)
+                    |> ignore
+                )
             )
             |> Promise.onFail (fun n ->
                 msgHandler |> report failedRunMsg
@@ -867,6 +957,16 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
                 msgHandler |> report completedMsg
                 handleTestResults n
             )
+            |> Promise.onSuccess (fun _ ->
+                projectsWithTests
+                |> Seq.iter (fun (prj,_) ->
+                    runnerRegister.Values
+                    |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
+                    |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                    |> Promise.onSuccess(handlerCover)
+                    |> ignore
+                )
+            )
             |> Promise.onFail (fun n ->
                 msgHandler |> report failedRunMsg
                 window.showErrorMessage (sprintf "Running test failed - %O" n)
@@ -897,6 +997,16 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
             |> Promise.onSuccess (fun n ->
                 msgHandler |> report completedMsg
                 handleTestResults n
+            )
+            |> Promise.onSuccess (fun _ ->
+                projectsWithTests
+                |> Seq.iter (fun (prj,_) ->
+                    runnerRegister.Values
+                    |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
+                    |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                    |> Promise.onSuccess(handlerCover)
+                    |> ignore
+                )
             )
             |> Promise.onFail (fun n ->
                 msgHandler |> report failedRunMsg
@@ -943,6 +1053,16 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
                 msgHandler |> report completedMsg
                 handleTestResults n
             )
+            |> Promise.onSuccess (fun _ ->
+                projectsWithTests
+                |> Seq.iter (fun (prj,_) ->
+                    runnerRegister.Values
+                    |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
+                    |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                    |> Promise.onSuccess(handlerCover)
+                    |> ignore
+                )
+            )
             |> Promise.onFail (fun n ->
                 msgHandler |> report failedRunMsg
                 window.showErrorMessage (sprintf "Running test failed - %O" n)
@@ -986,6 +1106,16 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
                 msgHandler |> report completedMsg
                 handleTestResults n
             )
+            |> Promise.onSuccess (fun _ ->
+                projectsWithTests
+                |> Seq.iter (fun (prj,_) ->
+                    runnerRegister.Values
+                    |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
+                    |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                    |> Promise.onSuccess(handlerCover)
+                    |> ignore
+                )
+            )
             |> Promise.onFail (fun n ->
                 msgHandler |> report failedRunMsg
                 window.showErrorMessage (sprintf "Running test failed - %O" n)
@@ -1027,6 +1157,16 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
                 msgHandler |> report completedMsg
                 handleTestResults n
             )
+            |> Promise.onSuccess (fun _ ->
+                projectsWithTests
+                |> Seq.iter (fun (prj,_) ->
+                    runnerRegister.Values
+                    |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
+                    |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                    |> Promise.onSuccess(handlerCover)
+                    |> ignore
+                )
+            )
             |> Promise.onFail (fun n ->
                 msgHandler |> report failedRunMsg
                 window.showErrorMessage (sprintf "Running test failed - %O" n)
@@ -1066,6 +1206,16 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
             |> Promise.onSuccess (fun n ->
                 msgHandler |> report completedMsg
                 handleTestResults n
+            )
+            |> Promise.onSuccess (fun _ ->
+                projectsWithTests
+                |> Seq.iter (fun (prj,_) ->
+                    runnerRegister.Values
+                    |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
+                    |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                    |> Promise.onSuccess(handlerCover)
+                    |> ignore
+                )
             )
             |> Promise.onFail (fun n ->
                 msgHandler |> report failedRunMsg

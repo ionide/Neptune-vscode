@@ -69,3 +69,4 @@ release/package-lock\.json
 *.vsix
 release/bin
 release/bin_vstest
+release/bin_coverlet
