@@ -33,18 +33,22 @@ let convert =  Globals.require.Invoke "xml-js" |> unbox<obj>
 let buildProjs api projs =
     projs
     |> List.iter (fun n ->
-        let name = Path.basename(n.Project)
-        let targPath = Path.join(Path.dirname n.Project, "obj", name + ".neptune.targets")
-        let content = targetFileContent (Path.join(pluginPath, "bin_coverlet"))
-        Fs.writeFileSync(targPath, content)
-
-        ()
+        match n.Info with
+        | ProjectResponseInfo.DotnetSdk z when z.TargetFrameworkIdentifier <> ".NETFramework" ->
+            let name = Path.basename(n.Project)
+            let targPath = Path.join(Path.dirname n.Project, "obj", name + ".neptune.targets")
+            let content = targetFileContent (Path.join(pluginPath, "bin_coverlet"))
+            Fs.writeFileSync(targPath, content)
+        | _ -> ()
     )
 
     projs
     |> List.fold (fun p proj ->  p |> Promise.bind (fun code ->
         if code = "1" then Promise.reject "Build failed"
-        else api.BuildProject proj)) (Promise.lift "")
+        else
+            let setting = Configuration.get false "Neptune.fastBuild"
+            if setting then api.BuildProjectFast proj else api.BuildProject proj
+    )) (Promise.lift "")
     |> Promise.bind (fun code ->
         if code = "1" then Promise.reject "Build failed"
         else Promise.lift ""
@@ -52,19 +56,23 @@ let buildProjs api projs =
     |> Promise.onSuccess(fun _ ->
         projs
         |> List.iter (fun n ->
-            let name = Path.basename(n.Project)
-            let targPath = Path.join(Path.dirname n.Project, "obj", name + ".neptune.targets")
-            Fs.unlinkSync(!!targPath)
-            ()
+            match n.Info with
+            | ProjectResponseInfo.DotnetSdk z when z.TargetFrameworkIdentifier <> ".NETFramework" ->
+                let name = Path.basename(n.Project)
+                let targPath = Path.join(Path.dirname n.Project, "obj", name + ".neptune.targets")
+                Fs.unlinkSync(!!targPath)
+            | _ -> ()
         )
     )
     |> Promise.onFail(fun _ ->
         projs
         |> List.iter (fun n ->
-            let name = Path.basename(n.Project)
-            let targPath = Path.join(Path.dirname n.Project, "obj", name + ".neptune.targets")
-            Fs.unlinkSync(!!targPath)
-            ()
+            match n.Info with
+            | ProjectResponseInfo.DotnetSdk z when z.TargetFrameworkIdentifier <> ".NETFramework" ->
+                let name = Path.basename(n.Project)
+                let targPath = Path.join(Path.dirname n.Project, "obj", name + ".neptune.targets")
+                Fs.unlinkSync(!!targPath)
+            | _ ->()
         )
     )
 
@@ -876,7 +884,7 @@ let createRunner (api : Api) =
             | ProjectResponseInfo.DotnetSdk z when z.TargetFrameworkIdentifier = ".NETFramework" ->
                 [Capability.CanRunAll; Capability.CanRunList; Capability.CanRunSingle]
             | ProjectResponseInfo.DotnetSdk _ ->
-                [Capability.CanDebugAll; Capability.CanDebugList; Capability.CanDebugSingle; Capability.CanRunAll; Capability.CanRunList; Capability.CanRunSingle]
+                [Capability.CanDebugAll; Capability.CanDebugList; Capability.CanDebugSingle; Capability.CanRunAll; Capability.CanRunList; Capability.CanRunSingle; Capability.CanCodeCoverage]
             | _ ->
                 [Capability.CanRunAll; Capability.CanRunList; Capability.CanRunSingle]
     }

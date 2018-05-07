@@ -8,6 +8,7 @@ module StatusMsgs =
     let failedRunMsg = "Running tests failed"
     let buildingMsg = "Building tests"
     let runningMsg = "Running tests"
+    let collectCoverageMsg = "Callculating Code Coverage"
 
 [<AutoOpen>]
 module Utils =

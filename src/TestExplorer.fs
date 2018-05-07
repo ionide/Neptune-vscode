@@ -406,18 +406,20 @@ let private handleTestResults (results: TestResult list) =
     |> ResizeArray
     |> diagnostcs.set
 
-let private handlerCover (input: (string * string * int) list) =
+let mutable coverData : (string * string * int) list = []
+
+let private displayCover () =
     window.visibleTextEditors
     |> Seq.iter (fun te ->
         match te.document with
         | Document.FSharp ->
             let cover =
-                input
+                coverData
                 |> Seq.where (fun (f, _, h) -> te.document.fileName = f && h <> 0)
                 |> Seq.map (fun (_,l,_) -> Range(float l - 1. ,0., float l - 1.,0.))
                 |> ResizeArray
             let uncover =
-                input
+                coverData
                 |> Seq.where (fun (f, _, h) -> te.document.fileName = f && h = 0)
                 |> Seq.map (fun (_,l,_) -> Range(float l - 1.,0., float l - 1.,0.))
                 |> ResizeArray
@@ -426,6 +428,18 @@ let private handlerCover (input: (string * string * int) list) =
         | _ ->
             ()
     )
+let private handlerCover input =
+    coverData <- input
+    displayCover ()
+
+let private clearCover () =
+    coverData <- []
+    window.visibleTextEditors
+    |> Seq.iter (fun te ->
+        te.setDecorations(coverDecorationType, !!ResizeArray())
+        te.setDecorations(uncoverDecorationType, !!ResizeArray())
+    )
+
 
 let private createTreeProvider () : TreeDataProvider<TreeModel> =
     { new TreeDataProvider<TreeModel>
@@ -611,7 +625,9 @@ let private createCodeLensesProvider () =
 
 
 let activate selector (context: ExtensionContext) (reporter : IReporter) =
-    workspace.onDidChangeTextDocument.Invoke(fun te -> parseTextDocument te.document |> unbox) |> context.subscriptions.Add
+    workspace.onDidChangeTextDocument.Invoke(fun te ->
+        clearCover ()
+        parseTextDocument te.document |> unbox) |> context.subscriptions.Add
     workspace.onDidSaveTextDocument.Invoke(fun te -> parseTextDocumentSave te |> unbox) |> context.subscriptions.Add
 
     commands.registerCommand("neptune.testExplorer.goTo", Func<obj, obj>(fun n ->
@@ -686,11 +702,14 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
                         handleTestResults n
                     )
                     |> Promise.onSuccess (fun _ ->
-                        runnerRegister.Values
-                        |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
-                        |> Promise.collect (fun r -> r.GenerateCoverage prj)
-                        |> Promise.onSuccess(handlerCover)
-                        |> ignore
+                        let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                        if cfg then
+                            msgHandler |> report collectCoverageMsg
+                            runnerRegister.Values
+                            |> Seq.where (fun r -> r.ShouldProjectBeRun prj && (r.Capabilities prj) |> List.contains Capability.CanCodeCoverage)
+                            |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                            |> Promise.onSuccess(handlerCover)
+                            |> ignore
                     )
                     |> Promise.onFail (fun n ->
                         msgHandler |> report failedRunMsg
@@ -738,11 +757,14 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
                         handleTestResults n
                     )
                     |> Promise.onSuccess (fun _ ->
-                        runnerRegister.Values
-                        |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
-                        |> Promise.collect (fun r -> r.GenerateCoverage prj)
-                        |> Promise.onSuccess(handlerCover)
-                        |> ignore
+                        let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                        if cfg then
+                            msgHandler |> report collectCoverageMsg
+                            runnerRegister.Values
+                            |> Seq.where (fun r -> r.ShouldProjectBeRun prj && (r.Capabilities prj) |> List.contains Capability.CanCodeCoverage)
+                            |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                            |> Promise.onSuccess(handlerCover)
+                            |> ignore
                     )
                     |> Promise.onFail (fun n ->
                         msgHandler |> report failedRunMsg
@@ -793,11 +815,14 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
                         handleTestResults n
                     )
                     |> Promise.onSuccess (fun _ ->
-                        runnerRegister.Values
-                        |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
-                        |> Promise.collect (fun r -> r.GenerateCoverage prj)
-                        |> Promise.onSuccess(handlerCover)
-                        |> ignore
+                        let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                        if cfg then
+                            msgHandler |> report collectCoverageMsg
+                            runnerRegister.Values
+                            |> Seq.where (fun r -> r.ShouldProjectBeRun prj && (r.Capabilities prj) |> List.contains Capability.CanCodeCoverage)
+                            |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                            |> Promise.onSuccess(handlerCover)
+                            |> ignore
                     )
                     |> Promise.onFail (fun n ->
                         msgHandler |> report failedRunMsg
@@ -848,11 +873,14 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
                         handleTestResults n
                     )
                     |> Promise.onSuccess (fun _ ->
-                        runnerRegister.Values
-                        |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
-                        |> Promise.collect (fun r -> r.GenerateCoverage prj)
-                        |> Promise.onSuccess(handlerCover)
-                        |> ignore
+                        let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                        if cfg then
+                            msgHandler |> report collectCoverageMsg
+                            runnerRegister.Values
+                            |> Seq.where (fun r -> r.ShouldProjectBeRun prj && (r.Capabilities prj) |> List.contains Capability.CanCodeCoverage)
+                            |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                            |> Promise.onSuccess(handlerCover)
+                            |> ignore
                     )
                     |> Promise.onFail (fun n ->
                         msgHandler |> report failedRunMsg
@@ -884,11 +912,14 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
             |> Promise.onSuccess (fun _ ->
                 projects
                 |> Seq.iter (fun prj ->
-                    runnerRegister.Values
-                    |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
-                    |> Promise.collect (fun r -> r.GenerateCoverage prj)
-                    |> Promise.onSuccess(handlerCover)
-                    |> ignore
+                    let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                    if cfg then
+                        msgHandler |> report collectCoverageMsg
+                        runnerRegister.Values
+                        |> Seq.where (fun r -> r.ShouldProjectBeRun prj && (r.Capabilities prj) |> List.contains Capability.CanCodeCoverage)
+                        |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                        |> Promise.onSuccess(handlerCover)
+                        |> ignore
                 )
             )
             |> Promise.onFail (fun n ->
@@ -919,11 +950,14 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
             |> Promise.onSuccess (fun _ ->
                 projects
                 |> Seq.iter (fun prj ->
-                    runnerRegister.Values
-                    |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
-                    |> Promise.collect (fun r -> r.GenerateCoverage prj)
-                    |> Promise.onSuccess(handlerCover)
-                    |> ignore
+                    let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                    if cfg then
+                        msgHandler |> report collectCoverageMsg
+                        runnerRegister.Values
+                        |> Seq.where (fun r -> r.ShouldProjectBeRun prj && (r.Capabilities prj) |> List.contains Capability.CanCodeCoverage)
+                        |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                        |> Promise.onSuccess(handlerCover)
+                        |> ignore
                 )
             )
             |> Promise.onFail (fun n ->
@@ -960,11 +994,14 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
             |> Promise.onSuccess (fun _ ->
                 projectsWithTests
                 |> Seq.iter (fun (prj,_) ->
-                    runnerRegister.Values
-                    |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
-                    |> Promise.collect (fun r -> r.GenerateCoverage prj)
-                    |> Promise.onSuccess(handlerCover)
-                    |> ignore
+                    let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                    if cfg then
+                        msgHandler |> report collectCoverageMsg
+                        runnerRegister.Values
+                        |> Seq.where (fun r -> r.ShouldProjectBeRun prj && (r.Capabilities prj) |> List.contains Capability.CanCodeCoverage)
+                        |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                        |> Promise.onSuccess(handlerCover)
+                        |> ignore
                 )
             )
             |> Promise.onFail (fun n ->
@@ -1001,11 +1038,14 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
             |> Promise.onSuccess (fun _ ->
                 projectsWithTests
                 |> Seq.iter (fun (prj,_) ->
-                    runnerRegister.Values
-                    |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
-                    |> Promise.collect (fun r -> r.GenerateCoverage prj)
-                    |> Promise.onSuccess(handlerCover)
-                    |> ignore
+                    let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                    if cfg then
+                        msgHandler |> report collectCoverageMsg
+                        runnerRegister.Values
+                        |> Seq.where (fun r -> r.ShouldProjectBeRun prj && (r.Capabilities prj) |> List.contains Capability.CanCodeCoverage)
+                        |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                        |> Promise.onSuccess(handlerCover)
+                        |> ignore
                 )
             )
             |> Promise.onFail (fun n ->
@@ -1056,11 +1096,14 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
             |> Promise.onSuccess (fun _ ->
                 projectsWithTests
                 |> Seq.iter (fun (prj,_) ->
-                    runnerRegister.Values
-                    |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
-                    |> Promise.collect (fun r -> r.GenerateCoverage prj)
-                    |> Promise.onSuccess(handlerCover)
-                    |> ignore
+                    let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                    if cfg then
+                        msgHandler |> report collectCoverageMsg
+                        runnerRegister.Values
+                        |> Seq.where (fun r -> r.ShouldProjectBeRun prj && (r.Capabilities prj) |> List.contains Capability.CanCodeCoverage)
+                        |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                        |> Promise.onSuccess(handlerCover)
+                        |> ignore
                 )
             )
             |> Promise.onFail (fun n ->
@@ -1109,11 +1152,14 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
             |> Promise.onSuccess (fun _ ->
                 projectsWithTests
                 |> Seq.iter (fun (prj,_) ->
-                    runnerRegister.Values
-                    |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
-                    |> Promise.collect (fun r -> r.GenerateCoverage prj)
-                    |> Promise.onSuccess(handlerCover)
-                    |> ignore
+                    let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                    if cfg then
+                        msgHandler |> report collectCoverageMsg
+                        runnerRegister.Values
+                        |> Seq.where (fun r -> r.ShouldProjectBeRun prj && (r.Capabilities prj) |> List.contains Capability.CanCodeCoverage)
+                        |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                        |> Promise.onSuccess(handlerCover)
+                        |> ignore
                 )
             )
             |> Promise.onFail (fun n ->
@@ -1160,11 +1206,14 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
             |> Promise.onSuccess (fun _ ->
                 projectsWithTests
                 |> Seq.iter (fun (prj,_) ->
-                    runnerRegister.Values
-                    |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
-                    |> Promise.collect (fun r -> r.GenerateCoverage prj)
-                    |> Promise.onSuccess(handlerCover)
-                    |> ignore
+                    let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                    if cfg then
+                        msgHandler |> report collectCoverageMsg
+                        runnerRegister.Values
+                        |> Seq.where (fun r -> r.ShouldProjectBeRun prj && (r.Capabilities prj) |> List.contains Capability.CanCodeCoverage)
+                        |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                        |> Promise.onSuccess(handlerCover)
+                        |> ignore
                 )
             )
             |> Promise.onFail (fun n ->
@@ -1210,11 +1259,14 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
             |> Promise.onSuccess (fun _ ->
                 projectsWithTests
                 |> Seq.iter (fun (prj,_) ->
-                    runnerRegister.Values
-                    |> Seq.where (fun r -> r.ShouldProjectBeRun prj)
-                    |> Promise.collect (fun r -> r.GenerateCoverage prj)
-                    |> Promise.onSuccess(handlerCover)
-                    |> ignore
+                    let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                    if cfg then
+                        msgHandler |> report collectCoverageMsg
+                        runnerRegister.Values
+                        |> Seq.where (fun r -> r.ShouldProjectBeRun prj && (r.Capabilities prj) |> List.contains Capability.CanCodeCoverage)
+                        |> Promise.collect (fun r -> r.GenerateCoverage prj)
+                        |> Promise.onSuccess(handlerCover)
+                        |> ignore
                 )
             )
             |> Promise.onFail (fun n ->
@@ -1242,5 +1294,8 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
     refresh.event.Invoke(unbox setDecorations)
     |> context.subscriptions.Add
 
-    window.onDidChangeVisibleTextEditors.Invoke(unbox setDecorations)
+    window.onDidChangeVisibleTextEditors.Invoke(unbox (fun _ ->
+        setDecorations ()
+        displayCover ()
+    ))
     |> context.subscriptions.Add

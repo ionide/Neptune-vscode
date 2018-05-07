@@ -6,6 +6,10 @@ open Model
 open TestExplorer
 open Ionide.VSCode.Helpers
 open System.Text.RegularExpressions
+open Fable.Import.Node
+open Fable.Core.JsInterop
+open Fable.Import
+open Utils
 
 let private lastOutput = Collections.Generic.Dictionary<string,string>()
 let private outputChannel = Fable.Import.vscode.window.createOutputChannel "Neptune (F# - Expecto Adapter)"
@@ -126,12 +130,49 @@ let getErrors () =
 
 let buildProjs api projs =
     projs
+    |> List.iter (fun n ->
+        match n.Info with
+        | ProjectResponseInfo.DotnetSdk z when z.TargetFrameworkIdentifier <> ".NETFramework" ->
+            let name = Path.basename(n.Project)
+            let targPath = Path.join(Path.dirname n.Project, "obj", name + ".neptune.targets")
+            let content = targetFileContent (Path.join(pluginPath, "bin_coverlet"))
+            Fs.writeFileSync(targPath, content)
+
+        | _ ->()
+    )
+
+    projs
     |> List.fold (fun p proj ->  p |> Promise.bind (fun code ->
         if code = "1" then Promise.reject "Build failed"
-        else api.BuildProject proj)) (Promise.lift "")
+        else
+            let setting = Configuration.get false "Neptune.fastBuild"
+            if setting then api.BuildProjectFast proj else api.BuildProject proj
+    )) (Promise.lift "")
     |> Promise.bind (fun code ->
         if code = "1" then Promise.reject "Build failed"
         else Promise.lift ""
+    )
+    |> Promise.onSuccess(fun _ ->
+        projs
+        |> List.iter (fun n ->
+            match n.Info with
+            | ProjectResponseInfo.DotnetSdk z when z.TargetFrameworkIdentifier <> ".NETFramework" ->
+                let name = Path.basename(n.Project)
+                let targPath = Path.join(Path.dirname n.Project, "obj", name + ".neptune.targets")
+                Fs.unlinkSync(!!targPath)
+            | _ -> ()
+        )
+    )
+    |> Promise.onFail(fun _ ->
+        projs
+        |> List.iter (fun n ->
+            match n.Info with
+            | ProjectResponseInfo.DotnetSdk z when z.TargetFrameworkIdentifier <> ".NETFramework" ->
+                let name = Path.basename(n.Project)
+                let targPath = Path.join(Path.dirname n.Project, "obj", name + ".neptune.targets")
+                Fs.unlinkSync(!!targPath)
+            | _ -> ()
+        )
     )
 
 let runExpectoProject (api : Api) project args =
@@ -300,14 +341,57 @@ let createRunner (api : Api) =
             )
             |> Promise.map (fun _ -> [])
 
-        member __.GenerateCoverage proj = null
+        member __.GenerateCoverage proj =
+            let generatorPath = Path.join(pluginPath, "bin_coverlet", "coverlet.generator.dll")
+            let instrPath = Path.join(Path.dirname proj.Output, "Instr.json")
+            let args = sprintf "\"%s\" \"%s\"" generatorPath instrPath
+            Process.exec "dotnet" "" args
+            |> Promise.map(fun _ ->
+                let coverPath = Path.join(Path.dirname proj.Output, "CovResult.json")
+                let content = Fs.readFileSync(coverPath).toString()
+                let json = JS.JSON.parse content
+                let libs = !!JS.Object.keys(json)
+
+                libs
+                |> Array.collect (fun n ->
+                    let o = json.Item n
+
+                    let files = !!JS.Object.keys(o)
+
+                    files
+                    |> Array.collect (fun f ->
+                        let o = o.Item f
+                        let modules = !!JS.Object.keys(o)
+
+                        modules
+                        |> Array.collect (fun m ->
+                            let o = o.Item m
+                            let funcs = !!JS.Object.keys(o)
+
+                            funcs
+                            |> Array.collect (fun fn ->
+                                let o = o.Item fn
+                                let lines = !!JS.Object.keys(o)
+
+                                lines
+                                |> Array.map (fun l ->
+                                    let o = o.Item l
+                                    (f, l, o?Hits)
+                                )
+                            )
+                        )
+
+                    ) )
+
+            )
+            |> Promise.map (!!)
 
         member __.Capabilities proj =
             match proj.Info with
             | ProjectResponseInfo.DotnetSdk z when z.TargetFrameworkIdentifier = ".NETFramework" ->
                 [Capability.CanRunAll; Capability.CanRunList; Capability.CanRunSingle]
             | ProjectResponseInfo.DotnetSdk _ ->
-                [Capability.CanDebugAll; Capability.CanDebugList; Capability.CanDebugSingle; Capability.CanRunAll; Capability.CanRunList; Capability.CanRunSingle]
+                [Capability.CanDebugAll; Capability.CanDebugList; Capability.CanDebugSingle; Capability.CanRunAll; Capability.CanRunList; Capability.CanRunSingle; Capability.CanCodeCoverage]
             | _ ->
                 [Capability.CanRunAll; Capability.CanRunList; Capability.CanRunSingle]
     }

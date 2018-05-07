@@ -26,6 +26,7 @@ type Capability =
     | CanRunSingle
     | CanRunList
     | CanRunAll
+    | CanCodeCoverage
 
 
 
