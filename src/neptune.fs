@@ -180,12 +180,22 @@ let checkKey (context : vscode.ExtensionContext) =
             Promise.lift false
 
 let activate (context : vscode.ExtensionContext) =
+    let ext = extensions.getExtension<Api> "Ionide.Ionide-fsharp"
+    let api = ext.exports
+    let state = System.Collections.Generic.Dictionary<string, Project>()
+
+
     let reporter : IReporter = createReporter(reporterConstr, "Neptune", "0.1.0", "9ed427d0-bc3a-4660-bea5-645012b626d5", "Neptune")
     reporter.sendTelemetryEvent "Activate" Globals.undefined Globals.undefined
     let df = createEmpty<DocumentFilter>
     df.language <- Some "fsharp"
     let df' : DocumentSelector = df |> U3.Case2
     notifyTelemetry context |> ignore
+
+    api.ProjectLoadedEvent.Invoke(fun pr ->
+        state.[pr.Project] <- pr
+        () |> unbox) |> context.subscriptions.Add
+
     checkKey context
     |> Promise.onSuccess (fun n ->
         if n then
@@ -194,6 +204,8 @@ let activate (context : vscode.ExtensionContext) =
             |> Promise.onSuccess (fun (api, storagePath) ->
                 ExpectoRunner.activate api
                 VSTestRunner.activate api storagePath.Value
+                state.Values
+                |> Seq.iter (TestExplorer.parseProject)
             )
             |> ignore
     )

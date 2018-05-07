@@ -22,6 +22,9 @@
   "engines": {
     "vscode": "^0.10.10"
   },
+  "extensionDependencies": [
+    "Ionide.Ionide-fsharp"
+  ],
   "categories": [
     "Programming Languages",
     "Other"
