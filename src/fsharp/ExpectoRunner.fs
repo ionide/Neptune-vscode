@@ -391,7 +391,7 @@ let createRunner (api : Api) =
             | ProjectResponseInfo.DotnetSdk z when z.TargetFrameworkIdentifier = ".NETFramework" ->
                 [Capability.CanRunAll; Capability.CanRunList; Capability.CanRunSingle]
             | ProjectResponseInfo.DotnetSdk _ ->
-                [Capability.CanDebugAll; Capability.CanDebugList; Capability.CanDebugSingle; Capability.CanRunAll; Capability.CanRunList; Capability.CanRunSingle; Capability.CanCodeCoverage]
+                [Capability.CanDebugAll; Capability.CanDebugList; Capability.CanDebugSingle; Capability.CanRunAll; Capability.CanRunList; Capability.CanRunSingle]
             | _ ->
                 [Capability.CanRunAll; Capability.CanRunList; Capability.CanRunSingle]
     }
