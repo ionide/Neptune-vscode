@@ -1,3 +1,13 @@
+### 1.3.1 - 26.06.2018
+* Code Coverage changes:
+  - disable code coverage by default
+  - add code coverage toggle to settings
+  - don't copy code coverage targets if feature is disabled
+
+* License Key handling changes:
+  - make sure we ask for license key in all cases
+  - add `Neptune: Set License Key` command
+
 ### 1.3.0 - 7.05.2018
 * PREVIEW: Initial version of Code Coverage - NUnit/XUnit for .Net Core
 
