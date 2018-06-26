@@ -57,6 +57,11 @@
           "type": "boolean",
           "default": true,
           "description": "Enable Neptunes telemetry"
+        },
+        "Neptune.enableCodeCoverage": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable Neptunes code coverage feature"
         }
       }
     },

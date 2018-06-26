@@ -702,7 +702,7 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
                         handleTestResults n
                     )
                     |> Promise.onSuccess (fun _ ->
-                        let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                        let cfg = Configuration.get false "Neptune.enableCodeCoverage"
                         if cfg then
                             msgHandler |> report collectCoverageMsg
                             runnerRegister.Values
@@ -757,7 +757,7 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
                         handleTestResults n
                     )
                     |> Promise.onSuccess (fun _ ->
-                        let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                        let cfg = Configuration.get false "Neptune.enableCodeCoverage"
                         if cfg then
                             msgHandler |> report collectCoverageMsg
                             runnerRegister.Values
@@ -815,7 +815,7 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
                         handleTestResults n
                     )
                     |> Promise.onSuccess (fun _ ->
-                        let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                        let cfg = Configuration.get false "Neptune.enableCodeCoverage"
                         if cfg then
                             msgHandler |> report collectCoverageMsg
                             runnerRegister.Values
@@ -873,7 +873,7 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
                         handleTestResults n
                     )
                     |> Promise.onSuccess (fun _ ->
-                        let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                        let cfg = Configuration.get false "Neptune.enableCodeCoverage"
                         if cfg then
                             msgHandler |> report collectCoverageMsg
                             runnerRegister.Values
@@ -912,7 +912,7 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
             |> Promise.onSuccess (fun _ ->
                 projects
                 |> Seq.iter (fun prj ->
-                    let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                    let cfg = Configuration.get false "Neptune.enableCodeCoverage"
                     if cfg then
                         msgHandler |> report collectCoverageMsg
                         runnerRegister.Values
@@ -950,7 +950,7 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
             |> Promise.onSuccess (fun _ ->
                 projects
                 |> Seq.iter (fun prj ->
-                    let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                    let cfg = Configuration.get false "Neptune.enableCodeCoverage"
                     if cfg then
                         msgHandler |> report collectCoverageMsg
                         runnerRegister.Values
@@ -994,7 +994,7 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
             |> Promise.onSuccess (fun _ ->
                 projectsWithTests
                 |> Seq.iter (fun (prj,_) ->
-                    let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                    let cfg = Configuration.get false "Neptune.enableCodeCoverage"
                     if cfg then
                         msgHandler |> report collectCoverageMsg
                         runnerRegister.Values
@@ -1038,7 +1038,7 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
             |> Promise.onSuccess (fun _ ->
                 projectsWithTests
                 |> Seq.iter (fun (prj,_) ->
-                    let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                    let cfg = Configuration.get false "Neptune.enableCodeCoverage"
                     if cfg then
                         msgHandler |> report collectCoverageMsg
                         runnerRegister.Values
@@ -1096,7 +1096,7 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
             |> Promise.onSuccess (fun _ ->
                 projectsWithTests
                 |> Seq.iter (fun (prj,_) ->
-                    let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                    let cfg = Configuration.get false "Neptune.enableCodeCoverage"
                     if cfg then
                         msgHandler |> report collectCoverageMsg
                         runnerRegister.Values
@@ -1152,7 +1152,7 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
             |> Promise.onSuccess (fun _ ->
                 projectsWithTests
                 |> Seq.iter (fun (prj,_) ->
-                    let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                    let cfg = Configuration.get false "Neptune.enableCodeCoverage"
                     if cfg then
                         msgHandler |> report collectCoverageMsg
                         runnerRegister.Values
@@ -1206,7 +1206,7 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
             |> Promise.onSuccess (fun _ ->
                 projectsWithTests
                 |> Seq.iter (fun (prj,_) ->
-                    let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                    let cfg = Configuration.get false "Neptune.enableCodeCoverage"
                     if cfg then
                         msgHandler |> report collectCoverageMsg
                         runnerRegister.Values
@@ -1259,7 +1259,7 @@ let activate selector (context: ExtensionContext) (reporter : IReporter) =
             |> Promise.onSuccess (fun _ ->
                 projectsWithTests
                 |> Seq.iter (fun (prj,_) ->
-                    let cfg = Configuration.get true "Neptune.enableCodeCoverage"
+                    let cfg = Configuration.get false "Neptune.enableCodeCoverage"
                     if cfg then
                         msgHandler |> report collectCoverageMsg
                         runnerRegister.Values

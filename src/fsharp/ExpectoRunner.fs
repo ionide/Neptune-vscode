@@ -129,17 +129,19 @@ let getErrors () =
     | _ -> [||]
 
 let buildProjs api projs =
-    projs
-    |> List.iter (fun n ->
-        match n.Info with
-        | ProjectResponseInfo.DotnetSdk z when z.TargetFrameworkIdentifier <> ".NETFramework" ->
-            let name = Path.basename(n.Project)
-            let targPath = Path.join(Path.dirname n.Project, "obj", name + ".neptune.targets")
-            let content = targetFileContent (Path.join(pluginPath, "bin_coverlet"))
-            Fs.writeFileSync(targPath, content)
+    let cfg = Configuration.get false "Neptune.enableCodeCoverage"
+    if cfg then
+        projs
+        |> List.iter (fun n ->
+            match n.Info with
+            | ProjectResponseInfo.DotnetSdk z when z.TargetFrameworkIdentifier <> ".NETFramework" ->
+                let name = Path.basename(n.Project)
+                let targPath = Path.join(Path.dirname n.Project, "obj", name + ".neptune.targets")
+                let content = targetFileContent (Path.join(pluginPath, "bin_coverlet"))
+                Fs.writeFileSync(targPath, content)
 
-        | _ ->()
-    )
+            | _ ->()
+        )
 
     projs
     |> List.fold (fun p proj ->  p |> Promise.bind (fun code ->
