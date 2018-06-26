@@ -62,7 +62,8 @@ let buildProjs api projs =
             | ProjectResponseInfo.DotnetSdk z when z.TargetFrameworkIdentifier <> ".NETFramework" ->
                 let name = Path.basename(n.Project)
                 let targPath = Path.join(Path.dirname n.Project, "obj", name + ".neptune.targets")
-                Fs.unlinkSync(!!targPath)
+                if Fs.existsSync !!targPath then
+                    Fs.unlinkSync(!!targPath)
             | _ -> ()
         )
     )
