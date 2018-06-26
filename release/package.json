@@ -77,6 +77,11 @@
         }
       },
       {
+        "command": "neptune.setApiKey",
+        "category": "Neptune",
+        "title": "Set License Key"
+      },
+      {
         "command": "neptune.runList",
         "category": "Tests",
         "title": "Run Tests"

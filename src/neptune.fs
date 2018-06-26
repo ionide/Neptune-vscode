@@ -111,20 +111,39 @@ let checkKey (context : vscode.ExtensionContext) =
                     if data then
                         Promise.lift true
                     else
-                        vscode.window.showWarningMessage("Neptune is paid extension. Your subscription has expired." , "Buy Neptune")
+                        vscode.window.showWarningMessage("Neptune is paid extension. Your subscription has expired." , "Buy Neptune",  "Enter License")
                         |> Promise.onSuccess (fun n ->
                             if n = "Buy Neptune" then
                                 vscode.commands.executeCommand("vscode.open", uri)
                                 |> ignore
+                            elif n = "Enter License" then
+                                let opts = createEmpty<InputBoxOptions>
+                                opts.prompt <- Some "License Key"
+                                vscode.window.showInputBox(opts)
+                                |> Promise.onSuccess (fun n ->
+                                    if JS.isDefined n then
+                                        context.globalState.update("productKey", n)
+                                        |> ignore
+                                ) |> ignore
+
                         )
                         |> ignore
                         Promise.lift false)
                 (fun _ ->
-                    vscode.window.showWarningMessage("Neptune is paid extension. Your subscription has expired" , "Buy Neptune")
+                    vscode.window.showWarningMessage("Neptune is paid extension. Your subscription has expired" , "Buy Neptune",  "Enter License")
                     |> Promise.onSuccess (fun n ->
                         if n = "Buy Neptune" then
                             vscode.commands.executeCommand("vscode.open", uri)
                             |> ignore
+                        elif n = "Enter License" then
+                                let opts = createEmpty<InputBoxOptions>
+                                opts.prompt <- Some "License Key"
+                                vscode.window.showInputBox(opts)
+                                |> Promise.onSuccess (fun n ->
+                                    if JS.isDefined n then
+                                        context.globalState.update("productKey", n)
+                                        |> ignore
+                                ) |> ignore
                     )
                     |> ignore
                     Promise.lift false)
@@ -183,6 +202,17 @@ let activate (context : vscode.ExtensionContext) =
     let ext = extensions.getExtension<Api> "Ionide.Ionide-fsharp"
     let api = ext.exports
     let state = System.Collections.Generic.Dictionary<string, Project>()
+
+    commands.registerCommand("neptune.setApiKey", Func<obj, obj>(fun _ ->
+        let opts = createEmpty<InputBoxOptions>
+        opts.prompt <- Some "License Key"
+        vscode.window.showInputBox(opts)
+        |> Promise.onSuccess (fun n ->
+            if JS.isDefined n then
+                context.globalState.update("productKey", n)
+                |> ignore
+        ) |> unbox
+    )) |> context.subscriptions.Add
 
 
     let reporter : IReporter = createReporter(reporterConstr, "Neptune", "0.1.0", "9ed427d0-bc3a-4660-bea5-645012b626d5", "Neptune")
