@@ -1,4 +1,4 @@
-### 1.3.2 - 26.06.2018
+### 1.3.3 - 26.06.2018
 * Code Coverage changes:
   - disable code coverage by default
   - add code coverage toggle to settings
