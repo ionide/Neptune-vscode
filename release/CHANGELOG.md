@@ -1,4 +1,4 @@
-### 1.3.4 - 18.07.2018
+### 1.3.5 - 18.07.2018
 * Fix detection of Expectot tests using lambda syntax (without `<|`)
 * Fix race condition for project parsing at the startup of plugin.
 * Fix running .Net Core expecto tests.
