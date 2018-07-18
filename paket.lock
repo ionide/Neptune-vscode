@@ -630,10 +630,10 @@ GIT
       build: build.sh Publish
       os: mono
   remote: https://github.com/Krzysztof-Cieslak/Neptune-vstest.git
-     (31c8817f37b64980f0174879a7f32fabda94407d)
+     (79e22677a87da42eb44e875bcac369734d95262e)
       build: build.cmd Publish
       os: windows
-     (31c8817f37b64980f0174879a7f32fabda94407d)
+     (79e22677a87da42eb44e875bcac369734d95262e)
       build: build.sh Publish
       os: mono
 GROUP build
