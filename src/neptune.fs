@@ -226,17 +226,13 @@ let activate (context : vscode.ExtensionContext) =
         state.[pr.Project] <- pr
         () |> unbox) |> context.subscriptions.Add
 
-    checkKey context
-    |> Promise.onSuccess (fun n ->
-        if n then
-            TestExplorer.activate df' context reporter
-            FSharpTestDetector.activate context
-            |> Promise.onSuccess (fun (api, storagePath) ->
-                ExpectoRunner.activate api
-                VSTestRunner.activate api storagePath.Value
-                state.Values
-                |> Seq.iter (TestExplorer.parseProject)
-            )
-            |> ignore
+
+    TestExplorer.activate df' context reporter
+    FSharpTestDetector.activate context
+    |> Promise.onSuccess (fun (api, storagePath) ->
+        ExpectoRunner.activate api
+        VSTestRunner.activate api storagePath.Value
+        state.Values
+        |> Seq.iter (TestExplorer.parseProject)
     )
     |> ignore
