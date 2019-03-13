@@ -70,3 +70,4 @@ release/package-lock\.json
 release/bin
 release/bin_vstest
 release/bin_coverlet
+.ionide/
